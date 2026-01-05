@@ -2,11 +2,10 @@
 // Created by MD Gaziur Rahman Noor on 23/12/25.
 //
 
-#include <nmfile.h>
+#include <nmcc/nmfile.h>
+#include <nmcc/nmerror.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "nmerror.h"
 
 NMFile *nmfile_open(const char *filename) {
     NMFile *file;
@@ -15,17 +14,22 @@ NMFile *nmfile_open(const char *filename) {
         return NULL;
     }
 
-    file->filename = malloc(strlen(filename) + 1);
-    if (!file->filename) {
-        free(file);
-        return NULL;
-    }
-    strcpy(file->filename, filename);
-
     file->f = fopen(filename, "r");
     file->has_error = !file->f;
 
+    if (!file->has_error) {
+        realpath(filename, file->path);
+    }
+
     return file;
+}
+
+void nmfile_reset_pos(NMFile *nmfile) {
+    fseek(nmfile->f, 0, SEEK_SET);
+}
+
+FILE *nmfile_inner(const NMFile *file) {
+    return file->f;
 }
 
 void nmfile_exit_if_error(const NMFile *file) {
@@ -33,7 +37,8 @@ void nmfile_exit_if_error(const NMFile *file) {
         return;
     }
 
-    nmcc_perror("Failed to open file `%s`", file->filename);
+    nmcc_perror("Failed to open file `%s`", file->path);
+    exit(EXIT_FAILURE);
 }
 
 NMString *nmfile_read_to_string(NMFile *file) {
@@ -47,6 +52,8 @@ NMString *nmfile_read_to_string(NMFile *file) {
     buffer[sz] = '\0';
     NMString *str = nmstring_new_from_str(buffer);
     free(buffer);
+
+    nmfile_reset_pos(file);
     return str;
 }
 
@@ -60,7 +67,6 @@ size_t nmfile_get_size(NMFile *file) {
 }
 
 void nmfile_close(NMFile *file) {
-    free(file->filename);
     fclose(file->f);
     free(file);
 }

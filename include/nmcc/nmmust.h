@@ -5,8 +5,10 @@
 #ifndef MUST_H
 #define MUST_H
 
+#include <stdlib.h>
+
 #define NOT_NULL(expr, msg) if (!expr) { \
-    fprintf(stderr, "NMCC PANIC: %s", msg); \
+    fprintf(stderr, "NMCC PANIC(%s:%d): %s", __FILE__, __LINE__, msg); \
     exit(EXIT_FAILURE); \
 }
 

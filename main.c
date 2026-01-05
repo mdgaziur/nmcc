@@ -1,25 +1,84 @@
 #include <stdio.h>
-#include <stdlib.h>
+#include <unistd.h>
 
-#include <nmmust.h>
-#include <nmfile.h>
+#include <nmcc/nmmust.h>
+#include <nmcc/nmfile.h>
+// #include <nmcc/preprocess1.h>
+
+#include "nmcc/nmcolors.h"
+#include "nmcc/nmdebug.h"
+#include "nmcc/nmdiagnostics.h"
+#include "nmcc/nmlex.h"
+
+void print_usage(const char *progname) {
+    fprintf(stderr, "Usage: %s [options] [filename]\n", progname);
+    fprintf(stderr, "Options:\n");
+    fprintf(stderr, "-I\t\t\t\tInclude directory\n");
+}
 
 int main(const int argc, char *argv[]) {
-    if (argc < 2) {
-        printf("Usage: %s [filename]\n", argv[0]);
+    const char *progname;
+    if (argc >= 1) {
+        progname = argv[0];
+    } else {
+        progname = "nmcc";
+    }
+
+    int opt;
+    while ((opt = getopt(argc, argv, "I:h")) != -1) {
+        switch (opt) {
+            case 'I':
+                NMDEBUG("-I=%s\n", optarg);
+                // preprocess_add_include_directory(nmstring_new_from_str(optarg));
+                break;
+            case 'h':
+                print_usage(progname);
+                return 0;
+            case '?':
+                print_usage(progname);
+                return EXIT_FAILURE;
+        }
+    }
+
+    if (optind == argc) {
+        fprintf(stderr, DIAG_CERROR "error:" ANSI_RESET " No file specified\n");
+        print_usage(progname);
         return EXIT_FAILURE;
     }
 
-    NMFile *file = nmfile_open(argv[1]);
+    if (optind < argc - 1) {
+        fprintf(stderr, DIAG_CERROR "error:" ANSI_RESET " only one file is currently supported!\n");
+        print_usage(progname);
+        return EXIT_FAILURE;
+    }
+
+    NMFile *file = nmfile_open(argv[optind]);
     NOT_NULL(file, "Failed to open source file");
     nmfile_exit_if_error(file);
 
-    NMString *str = nmfile_read_to_string(file);
-    NOT_NULL(str, "Failed to read source string");
+    NMString *file_data = nmfile_read_to_string(file);
 
-    printf("Content: \n%s\n", nmstring_get_inner(str));
+    Lexer *lexer = lexer_new(file, false);
+    Diagnostic *lexer_diagnostic = NULL;
+    LexicalToken *token = lex_next(lexer, &lexer_diagnostic);
+    while (true) {
+        if (token) {
+            debug_lexical_token(token);
+            if (token->kind == LEX_EOF) break;
+        }
+        if (lexer_diagnostic) {
+            print_diagnostic(lexer_diagnostic);
+            lexer_diagnostic = NULL;
+        }
+        token = lex_next(lexer, &lexer_diagnostic);
+    }
+    // NMString *preprocessed_code = nmstring_new();
+    // preprocess_code(file, preprocessed_code);
+    // printf("Preprocessed code: \n%s\n", S(preprocessed_code));
 
-    nmstring_free(str);
+    // nmstring_free(preprocessed_code);
+
+    nmstring_free(file_data);
     nmfile_close(file);
 
     return 0;

@@ -2,16 +2,24 @@
 // Created by MD Gaziur Rahman Noor on 23/12/25.
 //
 
-#include <nmerror.h>
-#include <nmstring.h>
+#include <nmcc/nmerror.h>
+#include <nmcc/nmstring.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "nmcc/nmmust.h"
 
 static NMString *nmstring_create_with_size(size_t);
 
 NMString *nmstring_new() {
     return nmstring_create_with_size(0);
+}
+
+NMString *nmstring_new_from_char(char c) {
+    NMString *nmstring = nmstring_create_with_size(1);
+    if (nmstring) nmstring->buf[0] = c;
+    return nmstring;
 }
 
 NMString *nmstring_new_from_str(const char *s) {
@@ -45,7 +53,7 @@ const char *nmstring_get_inner(const NMString *this) {
 
 void nmstring_append(NMString *this, const char c) {
     char *old_buf = this->buf;
-    this->buf = realloc(this->buf, this->size + 1);
+    this->buf = realloc(this->buf, this->size + 1 + 1);
     if (!this->buf) {
         perror("NMString reallocation failure");
         free(old_buf);
@@ -83,9 +91,59 @@ void nmstring_append_nmstring(NMString *this, NMString *src) {
     this->buf[this->size] = '\0';
 }
 
-void nmstring_free(NMString *nmstring) {
-    free(nmstring->buf);
-    free(nmstring);
+void nmstring_free(NMString *this) {
+    free(this->buf);
+    free(this);
+}
+
+void nmstring_clear(NMString *this) {
+    free(this->buf);
+    this->buf = malloc(1 * sizeof(char));
+    NOT_NULL(this->buf, "Failed to allocate NMString internal buffer after clearing!");
+    this->size = 0;
+}
+
+void nmstring_replace(NMString *this, const char *what, const char *with) {
+    NMString *res = nmstring_new();
+
+    NMString *cur = nmstring_new();
+    const char *whatptr = what;
+    size_t matchsize = 0;
+    size_t whatsize = strlen(what);
+    size_t i;
+    for (i = 0; i < this->size; i++) {
+        if (this->buf[i] == *whatptr) {
+            nmstring_append(cur, this->buf[i]);
+            whatptr++;
+            matchsize++;
+
+            if (matchsize == whatsize) {
+                nmstring_append_buf(res, with);
+                whatptr = what;
+                matchsize = 0;
+                nmstring_clear(cur);
+            }
+        } else {
+            if (cur->size > 0) nmstring_append_nmstring(res, cur);
+            nmstring_clear(cur);
+
+            if (this->buf[i] == *what) {
+                i--;
+            } else {
+                nmstring_append(res, this->buf[i]);
+            }
+
+            matchsize = 0;
+            whatptr = what;
+        }
+    }
+
+    if (cur->size > 0) nmstring_append_nmstring(res, cur);
+
+    free(this->buf);
+    this->buf = res->buf;
+    this->size = res->size;
+    free(res);
 }
 
 static NMString *nmstring_create_with_size(const size_t size) {
@@ -93,7 +151,7 @@ static NMString *nmstring_create_with_size(const size_t size) {
     if (nmstring) {
         nmstring->buf = malloc((size + 1) * sizeof(char));
         if (nmstring->buf) {
-            nmstring->buf[size - 1] = '\0';
+            nmstring->buf[size] = '\0';
             nmstring->size = size;
         } else {
             perror("NMString allocation failure");
