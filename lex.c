@@ -31,7 +31,6 @@ Lexer *lexer_new(NMFile *file, bool handle_whitespace) {
 LexicalToken *maybe_handle_space(Lexer *lexer, LexicalToken *token, Diagnostic **diagnostic) {
     if (lexer->handle_whitespace) {
         char cur_char = *lexer->cur_char;
-        lexer->cur_char++;
 
         switch (cur_char) {
             case ' ':
@@ -68,8 +67,10 @@ LexicalToken *maybe_handle_space(Lexer *lexer, LexicalToken *token, Diagnostic *
         return token;
     }
 
-    free(token);
     lexer->cur_char++;
+    lexer->cur_col++;
+
+    free(token);
     return lex_next(lexer, diagnostic);
 }
 
