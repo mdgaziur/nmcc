@@ -64,10 +64,13 @@ int main(const int argc, char *argv[]) {
     while (true) {
         if (token) {
             debug_lexical_token(token);
-            if (token->kind == LEX_EOF) break;
+            LexKind kind = token->kind;
+            lexical_token_free(token);
+            if (kind == LEX_EOF) break;
         }
         if (lexer_diagnostic) {
             print_diagnostic(lexer_diagnostic);
+            diagnostic_free(lexer_diagnostic);
             lexer_diagnostic = NULL;
         }
         token = lex_next(lexer, &lexer_diagnostic);
@@ -78,6 +81,7 @@ int main(const int argc, char *argv[]) {
 
     // nmstring_free(preprocessed_code);
 
+    lexer_free(lexer);
     nmstring_free(file_data);
     nmfile_close(file);
 

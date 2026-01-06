@@ -13,6 +13,11 @@
 #include "nmcc/nmerror.h"
 #include "nmcc/nmmust.h"
 
+void lexical_token_free(LexicalToken *token) {
+    if (token->lexeme) nmstring_free(token->lexeme);
+    free(token);
+}
+
 #define LEXER_ADVANCE(adv) \
     lexer->cur_char += adv; \
     lexer->cur_col += adv;
@@ -25,11 +30,16 @@ Lexer *lexer_new(NMFile *file, bool handle_whitespace) {
     lexer->file_path = file->path;
     lexer->file_content = nmfile_read_to_string(file);
     lexer->pos = 0;
-    lexer->cur_char = &S(lexer->file_content)[0];
+    lexer->cur_char = S(lexer->file_content);
     lexer->cur_line = 1;
     lexer->cur_col = 1;
     lexer->handle_whitespace = handle_whitespace;
     return lexer;
+}
+
+void lexer_free(Lexer *lexer) {
+    nmstring_free(lexer->file_content);
+    free(lexer);
 }
 
 LexicalToken *maybe_handle_space(Lexer *lexer, LexicalToken *token, Diagnostic **diagnostic) {
@@ -91,8 +101,9 @@ void lex_upto_two_char_token(Lexer *lexer,
     const LexKind *other_kinds,
     size_t n_other_kinds,
     bool *is_single_char_token) {
+    size_t line_start = lexer->cur_line;
+    size_t col_start = lexer->cur_col;
     const char next_char = *(lexer->cur_char + 1);
-    *is_single_char_token = true;
 
     // EOF
     if (!next_char) return;
@@ -101,16 +112,18 @@ void lex_upto_two_char_token(Lexer *lexer,
     for (cur_token = 0; cur_token < n_other_kinds; cur_token++) {
         if (next_char == other_chars[cur_token]) {
             token->kind = other_kinds[cur_token];
-            LEXER_ADVANCE(1);
 
             NMString *lexeme = nmstring_new_from_char(*lexer->cur_char);
+            LEXER_ADVANCE(1);
             nmstring_append(lexeme, next_char);
 
+            token->lexeme = lexeme;
+
             token->span = span_new(lexer->file_path,
+                line_start,
+                col_start,
                 lexer->cur_line,
-                lexer->cur_col,
-                lexer->cur_line,
-                lexer->cur_col + 1);
+                lexer->cur_col);
 
             return;
         }
@@ -201,7 +214,7 @@ void lex_string(Lexer *lexer, LexicalToken **token, bool is_wide_string, Diagnos
     if (has_error) {
         LEXER_ADVANCE(-1);
         free(*token);
-        free(lexeme);
+        nmstring_free(lexeme);
         *token = NULL;
     } else {
         nmstring_append(lexeme, *lexer->cur_char);
@@ -243,7 +256,7 @@ void lex_float_or_decimal(Lexer *lexer, LexicalToken **token, Diagnostic **diagn
             &sp
         );
 
-        free(lexeme);
+        nmstring_free(lexeme);
 
         return;
     }
@@ -322,7 +335,7 @@ void lex_octal(Lexer *lexer, LexicalToken **token, Diagnostic **diagnostic) {
 
     while (*lexer->cur_char && isnumber(*lexer->cur_char)) {
         if (*lexer->cur_char > '7') {
-            free(lexeme);
+            nmstring_free(lexeme);
             *diagnostic = diagnostic_for_single_char(
                 DIAG_ERROR,
                 lexer->file,
@@ -651,7 +664,7 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
                         lexer->file,
                         &sp);
                     free(token);
-                    free(lexeme);
+                    nmstring_free(lexeme);
                     token = NULL;
                 }
                 if (token) {

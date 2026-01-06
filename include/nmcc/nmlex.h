@@ -22,6 +22,7 @@ typedef struct {
 
 Lexer *lexer_new(NMFile *file, bool handle_whitespace);
 LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic);
+void lexer_free(Lexer *lexer);
 void debug_lexical_token(LexicalToken *token);
 
 #endif //NMLEX_H

@@ -34,6 +34,10 @@ Diagnostic *allocate_diagnostic() {
     return d;
 }
 
+void diagnostic_free(Diagnostic *diagnostic) {
+    free(diagnostic);
+}
+
 Diagnostic *diagnostic_for_span(DiagKind diag_kind, const char *msg, NMFile *file, Span *span) {
     Diagnostic *d = allocate_diagnostic();
 

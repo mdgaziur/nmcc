@@ -57,5 +57,6 @@ typedef struct {
 Diagnostic *diagnostic_for_span(DiagKind diag_kind, const char *msg, NMFile *file, Span *span);
 Diagnostic *diagnostic_for_single_char(DiagKind diag_kind, NMFile *file, const char *msg, size_t line, size_t col);
 void print_diagnostic(Diagnostic *diagnostic);
+void diagnostic_free(Diagnostic *diagnostic);
 
 #endif //NMDIAGNOSTICS_H

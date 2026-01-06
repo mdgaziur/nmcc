@@ -124,4 +124,6 @@ typedef struct {
     Span span;
 } LexicalToken;
 
+void lexical_token_free(LexicalToken *token);
+
 #endif //AST_H
