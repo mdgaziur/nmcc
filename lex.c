@@ -455,7 +455,6 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
         SINGLE_CHAR_TOKEN(',', LEX_COMMA)
         SINGLE_CHAR_TOKEN(':', LEX_COLON)
         SINGLE_CHAR_TOKEN(';', LEX_SEMICOLON)
-        SINGLE_CHAR_TOKEN('#', LEX_HASH)
         SINGLE_CHAR_TOKEN('~', LEX_BINARY_NOT)
         SINGLE_CHAR_TOKEN('?', LEX_QUESTION)
         SINGLE_CHAR_TOKEN('\\', LEX_BACKSLASH)
@@ -469,6 +468,7 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
         TWO_CHAR_TOKEN('=', LEX_ASSIGN, "=", LEX_EQUAL)
         TWO_CHAR_TOKEN('|', LEX_BINARY_OR, "|=", LEX_OR, LEX_OR_ASSIGN)
         TWO_CHAR_TOKEN('*', LEX_STAR, "=", LEX_MUL_ASSIGN)
+        TWO_CHAR_TOKEN('#', LEX_HASH, "#", LEX_DHASH);
 
         case '/': {
             size_t start_line = lexer->cur_line;
