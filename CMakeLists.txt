@@ -8,6 +8,8 @@ include_directories(include)
 
 if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
     add_compile_definitions(-DDEBUG)
+    add_compile_options(-fsanitize=address,undefined -g)
+    add_link_options(-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all)
 endif()
 
 add_executable(nmcc main.c
