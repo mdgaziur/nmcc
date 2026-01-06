@@ -220,7 +220,7 @@ void preprocess_include(const char *line_ptr, const char *file_path, NMString *p
         NMDEBUG("Attempting to find `%s` in `%s`\n", S(path), S(search_path));
         NMFile *f = nmfile_open(S(search_path));
         if (!f->has_error) {
-            preprocess_code(f, preprocessed_code);
+            preprocess1_code(f, preprocessed_code);
             has_found = true;
         }
 
@@ -236,7 +236,7 @@ void preprocess_include(const char *line_ptr, const char *file_path, NMString *p
         NMDEBUG("Attempting to find `%s` in `%s`\n", S(path), S(search_path));
         NMFile *f = nmfile_open(S(search_path));
         if (!f->has_error) {
-            preprocess_code(f, preprocessed_code);
+            preprocess1_code(f, preprocessed_code);
             has_found = true;
         }
 
@@ -252,7 +252,7 @@ void preprocess_include(const char *line_ptr, const char *file_path, NMString *p
 }
 
 // NOTE: this takes the ownership of `path`
-void preprocess_add_include_directory(NMString *path) {
+void preprocess1_add_include_directory(NMString *path) {
     preprocessor_state.include_directories = realloc(
         preprocessor_state.include_directories,
         (preprocessor_state.n_include_directories + 1) * sizeof(NMString)
@@ -263,7 +263,7 @@ void preprocess_add_include_directory(NMString *path) {
     preprocessor_state.n_include_directories++;
 }
 
-void preprocess_code(NMFile *src, NMString *preprocessed_code) {
+void preprocess1_code(NMFile *src, NMString *preprocessed_code) {
     FILE *src_file = nmfile_inner(src);
     NOT_NULL(src_file, "Cannot read from source file");
 

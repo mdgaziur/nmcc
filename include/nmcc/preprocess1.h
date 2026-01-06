@@ -7,7 +7,7 @@
 #include "nmfile.h"
 #include "nmstring.h"
 
-void preprocess_add_include_directory(NMString *path);
-void preprocess_code(NMFile *src_code, NMString *preprocessed_code);
+void preprocess1_add_include_directory(NMString *path);
+void preprocess1_code(NMFile *src_code, NMString *preprocessed_code);
 
 #endif //PREPROCESS_H

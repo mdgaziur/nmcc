@@ -195,12 +195,13 @@ void lex_string(Lexer *lexer, LexicalToken **token, bool is_wide_string, Diagnos
     } else if (*lexer->cur_char != '"') {
         has_error = true;
 
-        LEXER_ADVANCE(-1);
         *diagnostic = diagnostic_for_single_char(DIAG_ERROR, lexer->file, "Unterminated string", lexer->cur_line, lexer->cur_col);
     }
 
     if (has_error) {
+        LEXER_ADVANCE(-1);
         free(*token);
+        free(lexeme);
         *token = NULL;
     } else {
         nmstring_append(lexeme, *lexer->cur_char);
@@ -241,6 +242,8 @@ void lex_float_or_decimal(Lexer *lexer, LexicalToken **token, Diagnostic **diagn
             lexer->file,
             &sp
         );
+
+        free(lexeme);
 
         return;
     }
@@ -319,6 +322,7 @@ void lex_octal(Lexer *lexer, LexicalToken **token, Diagnostic **diagnostic) {
 
     while (*lexer->cur_char && isnumber(*lexer->cur_char)) {
         if (*lexer->cur_char > '7') {
+            free(lexeme);
             *diagnostic = diagnostic_for_single_char(
                 DIAG_ERROR,
                 lexer->file,
