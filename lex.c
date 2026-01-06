@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <nmcc/nmlex.h>
+#include <sys/errno.h>
 
 #include "nmcc/nmcolors.h"
 #include "nmcc/nmdebug.h"
@@ -497,7 +498,140 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
         TWO_CHAR_TOKEN('=', LEX_ASSIGN, "=", LEX_EQUAL)
         TWO_CHAR_TOKEN('|', LEX_BINARY_OR, "|=", LEX_OR, LEX_OR_ASSIGN)
         TWO_CHAR_TOKEN('*', LEX_STAR, "=", LEX_MUL_ASSIGN)
-        TWO_CHAR_TOKEN('#', LEX_HASH, "#", LEX_DHASH);
+
+        case '#': {
+            const LexKind kinds[] = { LEX_DHASH };
+            lex_upto_two_char_token(lexer, token, LEX_HASH, "#", kinds, 1, &is_single_char_token);
+
+            if (is_single_char_token && *(lexer->cur_char + 1) == 'l') {
+                const char *old_pos = lexer->cur_char;
+                NMString *ident = nmstring_new();
+                LEXER_ADVANCE(1);
+
+                while (*lexer->cur_char && isalpha(*lexer->cur_char)) {
+                    nmstring_append(ident, *lexer->cur_char);
+                    LEXER_ADVANCE(1);
+                }
+
+                if (NM_EQ_C(ident, "line")) {
+#define SKIP_WHITESPACE() \
+    while (*lexer->cur_char && *lexer->cur_char == ' ') { \
+        LEXER_ADVANCE(1); \
+    } \
+    if (!*lexer->cur_char) { \
+        *diagnostic = diagnostic_for_single_char( \
+            DIAG_ERROR, \
+            lexer->file, \
+            "Invalid syntax for `#line` (unexpected EOF)", \
+            lexer->cur_line, \
+            lexer->cur_col); \
+        lexical_token_free(token); \
+        token = NULL; \
+        is_single_char_token = false; \
+    } else
+
+#define EXPECT(ch) \
+    if (*lexer->cur_char != ch) { \
+        *diagnostic = diagnostic_for_single_char( \
+            DIAG_ERROR, \
+            lexer->file, \
+            "Invalid syntax for `#line`", \
+            lexer->cur_line, \
+            lexer->cur_col); \
+        lexical_token_free(token); \
+        token = NULL; \
+        is_single_char_token = false; \
+    } else
+
+                    SKIP_WHITESPACE() {
+                        size_t num_line_start  = lexer->cur_line;
+                        size_t num_col_start    = lexer->cur_col;
+                        NMString *line_num = nmstring_new();
+                        if (!isdigit(*lexer->cur_char)) {
+                            *diagnostic = diagnostic_for_single_char(
+                                DIAG_ERROR,
+                                lexer->file,
+                                "Invalid syntax for `#line` (expected a positive number)",
+                                lexer->cur_line,
+                                lexer->cur_col);
+                            lexical_token_free(token);
+                            token = NULL;
+                            is_single_char_token = false;
+                        } else {
+                            while (*lexer->cur_char && isdigit(*lexer->cur_char)) {
+                                nmstring_append(line_num, *lexer->cur_char);
+                                LEXER_ADVANCE(1);
+                            }
+
+                            size_t num_col_end = lexer->cur_col - 1;
+
+                            SKIP_WHITESPACE() {
+                                EXPECT('"') {
+                                    LEXER_ADVANCE(1);
+                                    NMString *file_path = nmstring_new();
+
+                                    while (*lexer->cur_char && *lexer->cur_char != '"') {
+                                        nmstring_append(file_path, *lexer->cur_char);
+                                        LEXER_ADVANCE(1);
+                                    }
+
+                                    EXPECT('"') {
+                                        LEXER_ADVANCE(1);
+                                        size_t actual_line_num = strtol(S(line_num), NULL, 10);
+
+                                        if (errno == ERANGE) {
+                                            Span sp = {
+                                                .file_path = lexer->file_path,
+                                                .line_start = num_line_start,
+                                                .linepos_start = num_col_start,
+                                                .line_end = num_line_start,
+                                                .linepos_end = num_col_end,
+                                            };
+                                            *diagnostic = diagnostic_for_span(
+                                                DIAG_ERROR,
+                                                "Overflow when attempting to convert line number",
+                                                lexer->file,
+                                                &sp);
+                                            lexical_token_free(token);
+                                            token = NULL;
+                                            is_single_char_token = false;
+                                        } else {
+                                            EXPECT('\n') {
+                                                LEXER_ADVANCE(1);
+                                                lexer->cur_line = actual_line_num;
+                                                lexer->cur_col = 1;
+
+                                                char *file_path_buf = malloc(sizeof(char) * (file_path->size + 1));
+                                                NOT_NULL(file_path_buf, "failed to allocate to store file path");
+                                                strcpy(file_path_buf, S(file_path));
+
+                                                lexer->file_path = file_path_buf;
+                                            }
+                                        }
+
+                                        nmstring_free(line_num);
+                                        nmstring_free(file_path);
+                                    }
+                                }
+                            }
+                        }
+
+                        if (diagnostic) {
+                            return NULL;
+                        }
+
+                        return lex_next(lexer, diagnostic);
+                    }
+
+#undef SKIP_WHITESPACE
+                } else {
+                    lexer->cur_char = old_pos;
+                }
+
+                nmstring_free(ident);
+            }
+            break;
+        }
 
         case '/': {
             size_t start_line = lexer->cur_line;
