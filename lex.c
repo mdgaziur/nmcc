@@ -302,7 +302,8 @@ void lex_float_or_decimal(Lexer *lexer, LexicalToken **token, Diagnostic **diagn
 }
 
 void lex_hex(Lexer *lexer, LexicalToken **token, Diagnostic **diagnostic) {
-    NMString *lexeme = nmstring_new_from_str("0x");
+    NMString *lexeme = nmstring_new_from_char(*lexer->cur_char);
+    nmstring_append(lexeme, *(lexer->cur_char + 1));
     const size_t start_line = lexer->cur_line;
     const size_t start_col = lexer->cur_col;
 
@@ -365,7 +366,7 @@ void lex_number(Lexer *lexer, LexicalToken **token, Diagnostic **diagnostic) {
 
     if (cur_char != '0') {
         lex_float_or_decimal(lexer, token, diagnostic);
-    } else if (*(lexer->cur_char + 1) == 'x') {
+    } else if (tolower(*(lexer->cur_char + 1)) == 'x') {
         lex_hex(lexer, token, diagnostic);
     } else {
         lex_octal(lexer, token, diagnostic);
