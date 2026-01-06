@@ -15,7 +15,7 @@ void print_diagnostic(Diagnostic *diagnostic) {
     if (diagnostic->kind == DIAG_WARNING) {
         P(DIAG_CWARN "warning: " DIAG_CINFO "%s\n" ANSI_RESET, S(diagnostic->msg));
     } else if (diagnostic->kind == DIAG_ERROR) {
-        P(DIAG_CERROR "warning: " DIAG_CINFO "%s\n" ANSI_RESET, S(diagnostic->msg));
+        P(DIAG_CERROR "error: " DIAG_CINFO "%s\n" ANSI_RESET, S(diagnostic->msg));
     }
 
     P(DIAG_CINFO "--> %s:%zu:%zu\n" ANSI_RESET,
