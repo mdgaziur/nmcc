@@ -6,11 +6,9 @@ add_compile_options(-Wall -g)
 
 include_directories(include)
 
-option(DEBUG "Enable debug information" on)
-
-if(DEBUG)
+if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
     add_compile_definitions(-DDEBUG)
-endif(DEBUG)
+endif()
 
 add_executable(nmcc main.c
         include/nmcc/nmstring.h
