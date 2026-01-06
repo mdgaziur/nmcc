@@ -47,6 +47,13 @@ size_t nmstring_length(const NMString *this) {
     return this->size;
 }
 
+size_t nmstring_count(const NMString *this, char c) {
+    size_t count = 0;
+    const char *cur = this->buf;
+    while (*cur) count += *cur++ == c;
+    return count;
+}
+
 const char *nmstring_get_inner(const NMString *this) {
     return this->buf;
 }

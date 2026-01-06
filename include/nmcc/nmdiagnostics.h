@@ -7,6 +7,7 @@
 
 #include "nmcolors.h"
 #include "nmfile.h"
+#include "nmspan.h"
 #include "nmstring.h"
 
 // TODO: make it create diagnostic once we finish implementing diagnostics handling
@@ -15,11 +16,7 @@
 #define ERR(...) fprintf(stderr, DIAG_CERROR "error at line: " STRINGIFY(__LINE__) ", file: " __FILE__ ": " ANSI_RESET __VA_ARGS__); fprintf(stderr, "\n");
 
 typedef struct {
-    size_t line_start;
-    size_t linepos_start;
-
-    size_t line_end;
-    size_t linepos_end;
+    Span span;
 
     NMString *correction;
 } Correction;
@@ -33,8 +30,7 @@ typedef struct {
     ExtraKind kind;
     NMString *snippet;
 
-    size_t line_start;
-    size_t line_end;
+    Span span;
 } Extra;
 
 typedef enum {
@@ -47,11 +43,7 @@ typedef struct {
     DiagKind kind;
 
     NMString *msg;
-    size_t line_start;
-    size_t linepos_start;
-
-    size_t line_end;
-    size_t linepos_end;
+    Span span;
 
     NMFile *file;
 
@@ -62,7 +54,8 @@ typedef struct {
     size_t n_extra;
 } Diagnostic;
 
-Diagnostic *diagnostic_for_single_char(DiagKind diag_kind, NMFile *file, NMString *msg, size_t line, size_t col);
+Diagnostic *diagnostic_for_span(DiagKind diag_kind, const char *msg, NMFile *file, Span *span);
+Diagnostic *diagnostic_for_single_char(DiagKind diag_kind, NMFile *file, const char *msg, size_t line, size_t col);
 void print_diagnostic(Diagnostic *diagnostic);
 
 #endif //NMDIAGNOSTICS_H

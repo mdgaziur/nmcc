@@ -20,6 +20,7 @@ NMString *nmstring_new_from_char(char c);
 NMString *nmstring_new_from_str(const char *s);
 NMString *nmstring_copy(const NMString *src);
 size_t nmstring_length(const NMString *this);
+size_t nmstring_count(const NMString *this, char c);
 void nmstring_append(NMString *this, const char c);
 void nmstring_append_buf(NMString *this, const char *buf);
 void nmstring_append_nmstring(NMString *this, NMString *src);
