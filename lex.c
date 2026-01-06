@@ -83,7 +83,7 @@ LexicalToken *maybe_handle_space(Lexer *lexer, LexicalToken *token, Diagnostic *
 
     LEXER_ADVANCE(1);
 
-    free(token);
+    lexical_token_free(token);
     return lex_next(lexer, diagnostic);
 }
 
@@ -425,7 +425,8 @@ void lex_identifier(Lexer *lexer, LexicalToken *token) {
 }
 
 LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
-    LexicalToken *token = malloc(sizeof(LexicalToken));
+    // `calloc` will cause `lexeme` to be automatically set to NULL
+    LexicalToken *token = calloc(1, sizeof(LexicalToken));
     NOT_NULL(token, "Failed to allocate data for lexical token");
 
     bool is_single_char_token = false;
@@ -664,7 +665,7 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
                         "Unterminated character literal",
                         lexer->file,
                         &sp);
-                    free(token);
+                    lexical_token_free(token);
                     nmstring_free(lexeme);
                     token = NULL;
                 }
@@ -689,7 +690,7 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
                     "Unknown character",
                     lexer->cur_line,
                     lexer->cur_col);
-                free(token);
+                lexical_token_free(token);
                 token = NULL;
             }
         }
