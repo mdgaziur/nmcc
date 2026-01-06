@@ -53,10 +53,10 @@ LexicalToken *maybe_handle_space(Lexer *lexer, LexicalToken *token, Diagnostic *
                 token->kind = LEX_VERTICAL_TAB;
                 break;
             default:
-                fprintf(stderr, DIAG_CERROR "INTERNAL ERROR: lex:maybe_handle_space called on non space character: `%c`(`%d`) [%s:%zu%zu]" ANSI_RESET,
+                fprintf(stderr, DIAG_CERROR "INTERNAL ERROR: lex:maybe_handle_space called on non space character: `%c`(`%d`) [%s:%zu:%zu]" ANSI_RESET,
                     cur_char,
                     cur_char,
-                    S(lexer->file_content),
+                    lexer->file_path,
                     lexer->cur_line,
                     lexer->cur_col);
                 FATAL();
