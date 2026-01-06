@@ -13,6 +13,10 @@
 #include "nmcc/nmerror.h"
 #include "nmcc/nmmust.h"
 
+#define LEXER_ADVANCE(adv) \
+    lexer->cur_char += adv; \
+    lexer->cur_col += adv;
+
 Lexer *lexer_new(NMFile *file, bool handle_whitespace) {
     Lexer *lexer = malloc(sizeof(Lexer));
     NOT_NULL(lexer, "Failed to allocate data for the lexer");
@@ -67,8 +71,7 @@ LexicalToken *maybe_handle_space(Lexer *lexer, LexicalToken *token, Diagnostic *
         return token;
     }
 
-    lexer->cur_char++;
-    lexer->cur_col++;
+    LEXER_ADVANCE(1);
 
     free(token);
     return lex_next(lexer, diagnostic);
@@ -97,10 +100,8 @@ void lex_upto_two_char_token(Lexer *lexer,
     size_t cur_token;
     for (cur_token = 0; cur_token < n_other_kinds; cur_token++) {
         if (next_char == other_chars[cur_token]) {
-            *is_single_char_token = false;
             token->kind = other_kinds[cur_token];
-            lexer->cur_char++;
-            lexer->cur_col++;
+            LEXER_ADVANCE(1);
 
             NMString *lexeme = nmstring_new_from_char(*lexer->cur_char);
             nmstring_append(lexeme, next_char);
@@ -116,6 +117,7 @@ void lex_upto_two_char_token(Lexer *lexer,
     }
 
     token->kind = single_kind;
+    *is_single_char_token = true;
 }
 
 void handle_escape_sequence(Lexer *lexer, NMString *lexeme, Diagnostic **diagnostic) {
@@ -167,24 +169,22 @@ void lex_string(Lexer *lexer, LexicalToken **token, bool is_wide_string, Diagnos
     size_t start_line = lexer->cur_line;
     size_t start_col = lexer->cur_col;
     NMString *lexeme = nmstring_new_from_char(*lexer->cur_char);
-    lexer->cur_char++;
-    lexer->cur_col++;
+    LEXER_ADVANCE(1);
 
     if (is_wide_string) {
         nmstring_append(lexeme, *lexer->cur_char);
-        lexer->cur_char++;
-        lexer->cur_col++;
+        LEXER_ADVANCE(1);
     }
 
     while (*lexer->cur_char && *lexer->cur_char != '"' && *lexer->cur_char != '\n') {
         if (*lexer->cur_char == '\\') {
-            lexer->cur_char++;
+            LEXER_ADVANCE(1);
             handle_escape_sequence(lexer, lexeme, diagnostic);
-            lexer->cur_char++;
+            LEXER_ADVANCE(1);
             continue;
         }
-        nmstring_append(lexeme, *lexer->cur_char++);
-        lexer->cur_col++;
+        nmstring_append(lexeme, *lexer->cur_char);
+        LEXER_ADVANCE(1);
     }
 
     bool has_error = false;
@@ -195,8 +195,7 @@ void lex_string(Lexer *lexer, LexicalToken **token, bool is_wide_string, Diagnos
     } else if (*lexer->cur_char != '"') {
         has_error = true;
 
-        lexer->cur_char--;
-        lexer->cur_col--;
+        LEXER_ADVANCE(-1);
         *diagnostic = diagnostic_for_single_char(DIAG_ERROR, lexer->file, "Unterminated string", lexer->cur_line, lexer->cur_col);
     }
 
@@ -216,19 +215,16 @@ void lex_float_or_decimal(Lexer *lexer, LexicalToken **token, Diagnostic **diagn
     const size_t start_line = lexer->cur_line;
     const size_t start_col = lexer->cur_col;
 
-    lexer->cur_char++;
-    lexer->cur_col++;
+    LEXER_ADVANCE(1);
 
     while (*lexer->cur_char
         && (*lexer->cur_char == '.'|| isnumber(*lexer->cur_char))) {
         nmstring_append(lexeme, *lexer->cur_char);
 
-        lexer->cur_char++;
-        lexer->cur_col++;
+        LEXER_ADVANCE(1);
     }
 
-    lexer->cur_char--;
-    lexer->cur_col--;
+    LEXER_ADVANCE(-1);
 
     size_t dot_count = nmstring_count(lexeme, '.');
     if (dot_count > 1) {
@@ -262,21 +258,21 @@ void lex_float_or_decimal(Lexer *lexer, LexicalToken **token, Diagnostic **diagn
         return;
     }
 
-    lexer->cur_char++;
-    lexer->cur_col++;
+    LEXER_ADVANCE(1);
 
     if (tolower(*lexer->cur_char) == 'e') {
         nmstring_append(lexeme, *lexer->cur_char);
-        lexer->cur_char++;
-        lexer->cur_col++;
+        LEXER_ADVANCE(1);
 
         if (lexer->cur_char[0] == '+' || lexer->cur_char[0] == '-') {
             nmstring_append(lexeme, *lexer->cur_char);
-            lexer->cur_char++;
-            lexer->cur_col++;
+            LEXER_ADVANCE(1);
         }
 
-        while (*lexer->cur_char && isnumber(*lexer->cur_char)) nmstring_append(lexeme, *lexer->cur_char++);
+        while (*lexer->cur_char && isnumber(*lexer->cur_char)) {
+            nmstring_append(lexeme, *lexer->cur_char);
+            LEXER_ADVANCE(1);
+        }
     }
 
     (*token)->kind = LEX_FLOAT;
@@ -295,17 +291,14 @@ void lex_hex(Lexer *lexer, LexicalToken **token, Diagnostic **diagnostic) {
     const size_t start_col = lexer->cur_col;
 
     // Eat 0x
-    lexer->cur_char += 2;
-    lexer->cur_col += 2;
+    LEXER_ADVANCE(2);
 
     while (*lexer->cur_char && (isnumber(*lexer->cur_char)
         || ('a' <= tolower(*lexer->cur_char) && tolower(*lexer->cur_char <= 'f')))) {
         nmstring_append(lexeme, *lexer->cur_char);
-        lexer->cur_char++;
-        lexer->cur_col++;
+        LEXER_ADVANCE(1);
     }
-    lexer->cur_char--;
-    lexer->cur_col--;
+    LEXER_ADVANCE(-1);
 
     (*token)->kind = LEX_NUMBER_HEX;
     (*token)->lexeme = lexeme;
@@ -322,8 +315,7 @@ void lex_octal(Lexer *lexer, LexicalToken **token, Diagnostic **diagnostic) {
     const size_t start_line = lexer->cur_line;
     const size_t start_col = lexer->cur_col;
 
-    lexer->cur_char++;
-    lexer->cur_col++;
+    LEXER_ADVANCE(1);
 
     while (*lexer->cur_char && isnumber(*lexer->cur_char)) {
         if (*lexer->cur_char > '7') {
@@ -337,11 +329,9 @@ void lex_octal(Lexer *lexer, LexicalToken **token, Diagnostic **diagnostic) {
             return;
         }
         nmstring_append(lexeme, *lexer->cur_char);
-        lexer->cur_char++;
-        lexer->cur_col++;
+        LEXER_ADVANCE(1);
     }
-    lexer->cur_char--;
-    lexer->cur_col--;
+    LEXER_ADVANCE(-1);
 
     (*token)->kind = LEX_NUMBER_OCT;
     (*token)->lexeme = lexeme;
@@ -369,16 +359,14 @@ void lex_identifier(Lexer *lexer, LexicalToken *token) {
     size_t start_line = lexer->cur_line;
     size_t start_col = lexer->cur_col;
     NMString *lexeme = nmstring_new_from_char(*lexer->cur_char);
-    lexer->cur_char++;
-    lexer->cur_col++;
+    LEXER_ADVANCE(1);
 
     while (*lexer->cur_char && (isalnum(*lexer->cur_char) || *lexer->cur_char == '_')) {
-        nmstring_append(lexeme, *lexer->cur_char++);
-        lexer->cur_col++;
+        nmstring_append(lexeme, *lexer->cur_char);
+        LEXER_ADVANCE(1);
     }
 
-    lexer->cur_char--;
-    lexer->cur_col--;
+    LEXER_ADVANCE(-1);
 
     token->lexeme = lexeme;
 
@@ -448,7 +436,7 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
     switch (*lexer->cur_char) {
         case '\n': {
             lexer->cur_line++;
-            lexer->cur_col = 1;
+            lexer->cur_col = 0;
         }
         case '\r':
         case '\t':
@@ -483,61 +471,80 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
         TWO_CHAR_TOKEN('*', LEX_STAR, "=", LEX_MUL_ASSIGN)
 
         case '/': {
-            size_t line_start = lexer->cur_line;
-            size_t col_start = lexer->cur_col;
+            size_t start_line = lexer->cur_line;
+            size_t start_col = lexer->cur_col;
 
             if (next_char == '=') {
                 is_single_char_token = false;
-                lexer->cur_char++;
-                lexer->cur_col++;
+                LEXER_ADVANCE(1);
 
                 token->kind = LEX_DIV_ASSIGN;
                 token->lexeme = nmstring_new_from_str("/=");
             } else if (next_char == '/') {
                 is_single_char_token = false;
-                lexer->cur_char++;
-                lexer->cur_col++;
+                LEXER_ADVANCE(1);
 
                 NMString *lexeme = nmstring_new_from_str("/");
                 while (*lexer->cur_char && *lexer->cur_char != '\n') {
                     nmstring_append(lexeme, *lexer->cur_char);
-                    lexer->cur_char++;
-                    lexer->cur_col++;
+                    LEXER_ADVANCE(1);
+                }
+                LEXER_ADVANCE(-1);
+
+                token->kind = LEX_COMMENT;
+                token->lexeme = lexeme;
+            } else if (next_char == '*') {
+                is_single_char_token = false;
+                LEXER_ADVANCE(2);
+
+                NMString *lexeme = nmstring_new_from_str("/*");
+                while (*lexer->cur_char) {
+                    nmstring_append(lexeme, *lexer->cur_char);
 
                     if (*lexer->cur_char == '\n') {
-                        lexer->cur_char--;
-                        lexer->cur_col--;
+                        lexer->cur_line++;
+                        lexer->cur_col = 1;
+                    }
+
+                    if (*lexer->cur_char == '*' && *(lexer->cur_char + 1) == '/') {
+                        LEXER_ADVANCE(1);
+                        nmstring_append(lexeme, *lexer->cur_char);
                         break;
                     }
+
+                    LEXER_ADVANCE(1);
                 }
 
                 token->kind = LEX_COMMENT;
                 token->lexeme = lexeme;
+
             } else {
                 token->kind = LEX_SLASH;
+                is_single_char_token = true;
             }
 
             if (!is_single_char_token) {
-                token->span = span_new(lexer->file_path,
-                    line_start,
-                    col_start,
+                token->span = span_new(
+                    lexer->file_path,
+                    start_line,
+                    start_col,
                     lexer->cur_line,
-                    lexer->cur_col);
-                lexer->cur_char++;
+                    lexer->cur_col
+                );
             }
             break;
         }
         case '.': {
             if (next_char == '.') {
                 if (*(lexer->cur_char + 2) == '.') {
-                    is_single_char_token = false;
-                    lexer->cur_char += 2;
-                    lexer->cur_col += 2;
+                    LEXER_ADVANCE(2);
 
                     token->kind = LEX_THREE_DOTS;
+                    token->lexeme = nmstring_new_from_str("...");
                 }
             } else {
                 token->kind = LEX_DOT;
+                is_single_char_token = true;
             }
 
             if (!is_single_char_token) {
@@ -546,7 +553,6 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
                     lexer->cur_col - 2,
                     lexer->cur_line,
                     lexer->cur_col);
-                lexer->cur_char++;
             }
 
             break;
@@ -555,27 +561,25 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
             if (next_char == '>') {
                 const char next_next_token = *(lexer->cur_char + 2);
                 if (next_next_token == '=') {
-                    lexer->cur_char += 2;
-                    lexer->cur_col += 2;
+                    LEXER_ADVANCE(2);
 
                     token->kind = LEX_RSHIFT_ASSIGN;
                     token->lexeme = nmstring_new_from_str(">>=");
                 } else {
-                    lexer->cur_char++;
-                    lexer->cur_col++;
+                    LEXER_ADVANCE(1);
 
                     token->kind = LEX_RSHIFT;
                     token->lexeme = nmstring_new_from_str(">>");
                 }
             } else if (next_char == '=') {
                 is_single_char_token = false;
-                lexer->cur_char++;
-                lexer->cur_col++;
+                LEXER_ADVANCE(1);
 
                 token->kind = LEX_GREATER_EQUAL;
                 token->lexeme = nmstring_new_from_str(">=");
             } else {
                 token->kind = LEX_GREATER;
+                is_single_char_token = true;
             }
 
             break;
@@ -583,27 +587,25 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
             if (next_char == '<') {
                 const char next_next_token = *(lexer->cur_char + 2);
                 if (next_next_token == '=') {
-                    lexer->cur_char += 2;
-                    lexer->cur_col += 2;
+                    LEXER_ADVANCE(2);
 
                     token->kind = LEX_LSHIFT_ASSIGN;
                     token->lexeme = nmstring_new_from_str(">>=");
                 } else {
-                    lexer->cur_char++;
-                    lexer->cur_col++;
+                    LEXER_ADVANCE(1);
 
                     token->kind = LEX_LSHIFT;
                     token->lexeme = nmstring_new_from_str(">>");
                 }
             } else if (next_char == '=') {
                 is_single_char_token = false;
-                lexer->cur_char++;
-                lexer->cur_col++;
+                LEXER_ADVANCE(1);
 
                 token->kind = LEX_LESS_EQUAL;
                 token->lexeme = nmstring_new_from_str("<=");
             } else {
                 token->kind = LEX_LESS;
+                is_single_char_token = true;
             }
 
             break;
@@ -617,21 +619,17 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
                 lex_string(lexer, &token, is_wide_string, diagnostic);
             } else if (cur_char == '\'') {
                 NMString *lexeme = nmstring_new_from_char('\'');
-                lexer->cur_char++;
-                lexer->cur_col++;
+                LEXER_ADVANCE(1);
 
                 if (*lexer->cur_char == '\\') {
-                    lexer->cur_char++;
-                    lexer->cur_col++;
+                    LEXER_ADVANCE(1);
                     handle_escape_sequence(lexer, lexeme, diagnostic);
-                    lexer->cur_char++;
-                    lexer->cur_col++;
+                    LEXER_ADVANCE(1);
                 } else {
                     nmstring_append(lexeme, *lexer->cur_char);
                     nmstring_append(lexeme, '\'');
 
-                    lexer->cur_char++;
-                    lexer->cur_col++;
+                    LEXER_ADVANCE(1);
                 }
 
                 if (*lexer->cur_char != '\'') {
@@ -655,6 +653,12 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
                 if (token) {
                     token->kind = LEX_CHAR_LIT;
                     token->lexeme = lexeme;
+                    token->span = span_new(
+                        lexer->file_path,
+                        lexer->cur_line,
+                        lexer->cur_col - 2,
+                        lexer->cur_line,
+                        lexer->cur_col);
                 }
             } else if (isalpha(cur_char) || cur_char == '_') {
                 lex_identifier(lexer, token);
@@ -680,8 +684,7 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
         token->lexeme = nmstring_new_from_char(*lexer->cur_char);
     }
 
-    lexer->cur_char++;
-    lexer->cur_col++;
+    LEXER_ADVANCE(1);
 
     return token;
 }
@@ -689,7 +692,13 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
 void debug_lexical_token(LexicalToken *token) {
     fprintf(stderr, "LexicalToken {\n");
     fprintf(stderr, "\tkind: %d,\n", token->kind);
-    if (token->lexeme) fprintf(stderr, "\tlexeme: \"%s\"\n", S(token->lexeme));
-    else fprintf(stderr, "\tlexeme: (null)\n");
+    if (token->lexeme) fprintf(stderr, "\tlexeme: \"%s\",\n", S(token->lexeme));
+    else fprintf(stderr, "\tlexeme: (null),\n");
+    fprintf(stderr, "\tspan: %s:%zu:%zu-%zu:%zu\n",
+        token->span.file_path,
+        token->span.line_start,
+        token->span.linepos_start,
+        token->span.line_end,
+        token->span.linepos_end);
     fprintf(stderr, "}\n");
 }
