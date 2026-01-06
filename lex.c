@@ -451,6 +451,16 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
         break; \
     }
 
+    if (!*lexer->cur_char) {
+        token->kind = LEX_EOF;
+        token->span = span_new(
+            lexer->file_path,
+            lexer->cur_line,
+            lexer->cur_col,
+            lexer->cur_line,
+            lexer->cur_col);
+        return token;
+    }
     const char next_char = *(lexer->cur_char + 1);
     switch (*lexer->cur_char) {
         case '\n': {
@@ -627,9 +637,6 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
                 is_single_char_token = true;
             }
 
-            break;
-        case 0:
-            token->kind = LEX_EOF;
             break;
         default: {
             const char cur_char = *lexer->cur_char;
