@@ -30,7 +30,11 @@ bool preprocess_code(NMFile *src_code, NMString *preprocessed_code) {
         print_diagnostic(V(lexer_diagnostics, Diagnostic*, i));
     }
 
+    bool has_error = lexer_diagnostics->size > 0;
+
     while (lexer_diagnostics->size > 0)
         diagnostic_free(*(Diagnostic **)nmvec_pop(lexer_diagnostics));
     nmvec_free(lexer_diagnostics);
+
+    return has_error;
 }
