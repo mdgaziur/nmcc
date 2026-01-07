@@ -12,6 +12,26 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
     add_link_options(-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all)
 endif()
 
+find_program(CLANG_FORMAT "clang-format")
+
+if(CLANG_FORMAT)
+    file(GLOB_RECURSE ALL_SOURCE_FILES
+            ${CMAKE_SOURCE_DIR}/*.c
+            ${CMAKE_SOURCE_DIR}/libnmcc/*.c
+            ${CMAKE_SOURCE_DIR}/*.h
+            ${CMAKE_SOURCE_DIR}/include/*.h
+    )
+
+    add_custom_target(
+            format
+            COMMAND ${CLANG_FORMAT} -i -style=file ${ALL_SOURCE_FILES}
+            COMMENT "Running clang-format on source files..."
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    )
+else()
+    message(WARNING "clang-format not found. The 'format' target will not be available.")
+endif()
+
 add_executable(nmcc main.c
         include/nmcc/nmstring.h
         libnmcc/string.c

@@ -9,4 +9,4 @@
 
 void nmcc_perror(const char *fmt, ...);
 
-#endif //ERROR_H
+#endif // ERROR_H

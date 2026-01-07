@@ -10,4 +10,4 @@
 void preprocess1_add_include_directory(NMString *path);
 void preprocess1_code(NMFile *src_code, NMString *preprocessed_code);
 
-#endif //PREPROCESS_H
+#endif // PREPROCESS_H

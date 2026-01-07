@@ -11,14 +11,14 @@
 #include "nmvec.h"
 
 typedef struct {
-    NMFile *file;
-    const char *file_path;
-    NMString *file_content;
-    const char *cur_char;
-    size_t pos;
-    size_t cur_line;
-    size_t cur_col;
-    bool handle_whitespace;
+  NMFile *file;
+  const char *file_path;
+  NMString *file_content;
+  const char *cur_char;
+  size_t pos;
+  size_t cur_line;
+  size_t cur_col;
+  bool handle_whitespace;
 } Lexer;
 
 Lexer *lexer_new(NMFile *file, bool handle_whitespace);
@@ -26,4 +26,4 @@ LexicalToken *lex_next(Lexer *lexer, NMVec *vec);
 void lexer_free(Lexer *lexer);
 void debug_lexical_token(LexicalToken *token);
 
-#endif //NMLEX_H
+#endif // NMLEX_H

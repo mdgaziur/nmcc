@@ -7,4 +7,4 @@
 
 NMString *get_dirname(const char *absolute_path);
 
-#endif //NMUTILS_H
+#endif // NMUTILS_H

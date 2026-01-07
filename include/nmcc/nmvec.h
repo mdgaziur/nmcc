@@ -5,13 +5,15 @@
 #ifndef NMVEC_H
 #define NMVEC_H
 
+#include <ctype.h>
+
 #define V(vec, type, idx) (*(type *)nmvec_at(vec, idx))
 
 typedef struct {
-    char *data;
-    size_t size;
-    size_t capacity;
-    size_t item_size;
+  char *data;
+  size_t size;
+  size_t capacity;
+  size_t item_size;
 } NMVec;
 
 extern size_t NMVEC_GROWTH_FACTOR;
@@ -26,4 +28,4 @@ void *nmvec_pop(NMVec *this);
 void *nmvec_get_buf(NMVec *this);
 void *nmvec_at(NMVec *this, size_t idx);
 
-#endif //NMVEC_H
+#endif // NMVEC_H

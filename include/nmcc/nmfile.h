@@ -5,16 +5,16 @@
 #ifndef NMFILE_H
 #define NMFILE_H
 
-#include <stdio.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <sys/syslimits.h>
 
 #include "nmstring.h"
 
 typedef struct {
-    FILE *f;
-    char path[PATH_MAX];
-    bool has_error;
+  FILE *f;
+  char path[PATH_MAX];
+  bool has_error;
 } NMFile;
 
 NMFile *nmfile_open(const char *filename);
@@ -25,4 +25,4 @@ size_t nmfile_get_size(NMFile *);
 NMString *nmfile_read_to_string(NMFile *);
 void nmfile_close(NMFile *);
 
-#endif //NMFILE_H
+#endif // NMFILE_H

@@ -8,4 +8,4 @@
 
 NMString *fmt(const char *fmt, ...);
 
-#endif //NMFMT_H
+#endif // NMFMT_H

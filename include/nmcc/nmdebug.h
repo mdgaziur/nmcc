@@ -6,15 +6,22 @@
 #define NMDEBUG_H
 
 #ifdef DEBUG
-#define NMDEBUG(...) fprintf(stderr, "[Debug] " __VA_ARGS__); fflush(stdout);
+#define NMDEBUG(...)                                                           \
+  fprintf(stderr, "[Debug] " __VA_ARGS__);                                     \
+  fflush(stdout);
 #else
 #define NMDEBUG(...)
 #endif
 
 #ifdef DEBUG
-#define NMTODO(...) fprintf(stderr, "[Todo] " __VA_ARGS__); fflush(stdout);
+#define NMTODO(...)                                                            \
+  fprintf(stderr, "[Todo] " __VA_ARGS__);                                      \
+  fflush(stdout);
 #else
-#define NMTODO(...) fprintf(stderr, "[Todo] " __VA_ARGS__); fflush(stdout); exit(EXIT_FAILURE);
+#define NMTODO(...)                                                            \
+  fprintf(stderr, "[Todo] " __VA_ARGS__);                                      \
+  fflush(stdout);                                                              \
+  exit(EXIT_FAILURE);
 #endif
 
-#endif //NMDEBUG_H
+#endif // NMDEBUG_H

@@ -11,8 +11,8 @@
 #define NM_EQ_C(s1, cs1) (strcmp(S(s1), cs1) == 0)
 
 typedef struct {
-    char *buf;
-    size_t size;
+  char *buf;
+  size_t size;
 } NMString;
 
 NMString *nmstring_new();
@@ -29,4 +29,4 @@ void nmstring_replace(NMString *this, const char *what, const char *with);
 void nmstring_free(NMString *this);
 void nmstring_clear(NMString *this);
 
-#endif //STRING_H
+#endif // STRING_H
