@@ -8,6 +8,7 @@
 #include "nmast.h"
 #include "nmdiagnostics.h"
 #include "nmfile.h"
+#include "nmvec.h"
 
 typedef struct {
     NMFile *file;
@@ -21,7 +22,7 @@ typedef struct {
 } Lexer;
 
 Lexer *lexer_new(NMFile *file, bool handle_whitespace);
-LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic);
+LexicalToken *lex_next(Lexer *lexer, NMVec *vec);
 void lexer_free(Lexer *lexer);
 void debug_lexical_token(LexicalToken *token);
 

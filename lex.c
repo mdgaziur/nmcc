@@ -43,7 +43,7 @@ void lexer_free(Lexer *lexer) {
     free(lexer);
 }
 
-LexicalToken *maybe_handle_space(Lexer *lexer, LexicalToken *token, Diagnostic **diagnostic) {
+LexicalToken *maybe_handle_space(Lexer *lexer, LexicalToken *token, NMVec *diagnostic) {
     if (lexer->handle_whitespace) {
         char cur_char = *lexer->cur_char;
 
@@ -79,11 +79,11 @@ LexicalToken *maybe_handle_space(Lexer *lexer, LexicalToken *token, Diagnostic *
         token->lexeme = nmstring_new_from_char(cur_char);
         token->span = span_for_single_char(lexer->file_path, lexer->cur_line, lexer->cur_col);
 
+        LEXER_ADVANCE(1);
         return token;
     }
 
     LEXER_ADVANCE(1);
-
     lexical_token_free(token);
     return lex_next(lexer, diagnostic);
 }
@@ -134,7 +134,7 @@ void lex_upto_two_char_token(Lexer *lexer,
     *is_single_char_token = true;
 }
 
-void handle_escape_sequence(Lexer *lexer, NMString *lexeme, Diagnostic **diagnostic) {
+void handle_escape_sequence(Lexer *lexer, NMString *lexeme, NMVec *diagnostic) {
     switch (*lexer->cur_char) {
         case '\'':
             nmstring_append(lexeme, '\'');
@@ -170,16 +170,16 @@ void handle_escape_sequence(Lexer *lexer, NMString *lexeme, Diagnostic **diagnos
             nmstring_append(lexeme, '\v');
             break;
         default:
-            *diagnostic = diagnostic_for_single_char(
+            nmvec_push(diagnostic, &(Diagnostic*){ diagnostic_for_single_char(
                 DIAG_WARNING,
                 lexer->file,
                 "Unknown escape sequence",
                 lexer->cur_line,
-                lexer->cur_col);
+                lexer->cur_col) });
     }
 }
 
-void lex_string(Lexer *lexer, LexicalToken **token, bool is_wide_string, Diagnostic **diagnostic) {
+void lex_string(Lexer *lexer, LexicalToken **token, bool is_wide_string, NMVec *diagnostics) {
     size_t start_line = lexer->cur_line;
     size_t start_col = lexer->cur_col;
     NMString *lexeme = nmstring_new_from_char(*lexer->cur_char);
@@ -193,7 +193,7 @@ void lex_string(Lexer *lexer, LexicalToken **token, bool is_wide_string, Diagnos
     while (*lexer->cur_char && *lexer->cur_char != '"' && *lexer->cur_char != '\n') {
         if (*lexer->cur_char == '\\') {
             LEXER_ADVANCE(1);
-            handle_escape_sequence(lexer, lexeme, diagnostic);
+            handle_escape_sequence(lexer, lexeme, diagnostics);
             LEXER_ADVANCE(1);
             continue;
         }
@@ -205,11 +205,13 @@ void lex_string(Lexer *lexer, LexicalToken **token, bool is_wide_string, Diagnos
     if (!lexer->cur_char) {
         has_error = true;
 
-        *diagnostic = diagnostic_for_single_char(DIAG_ERROR, lexer->file, "Unexpected EOF", lexer->cur_line, lexer->cur_col);
+        nmvec_push(
+            diagnostics,
+            &(Diagnostic*){ diagnostic_for_single_char(DIAG_ERROR, lexer->file, "Unexpected EOF", lexer->cur_line, lexer->cur_col) });
     } else if (*lexer->cur_char != '"') {
         has_error = true;
 
-        *diagnostic = diagnostic_for_single_char(DIAG_ERROR, lexer->file, "Unterminated string", lexer->cur_line, lexer->cur_col);
+        nmvec_push(diagnostics, &(Diagnostic*){ diagnostic_for_single_char(DIAG_ERROR, lexer->file, "Unterminated string", lexer->cur_line, lexer->cur_col) });
     }
 
     if (has_error) {
@@ -225,7 +227,7 @@ void lex_string(Lexer *lexer, LexicalToken **token, bool is_wide_string, Diagnos
     }
 }
 
-void lex_float_or_decimal(Lexer *lexer, LexicalToken **token, Diagnostic **diagnostic) {
+void lex_float_or_decimal(Lexer *lexer, LexicalToken **token, NMVec *diagnostics) {
     NMString *lexeme = nmstring_new_from_char(*lexer->cur_char);
     const size_t start_line = lexer->cur_line;
     const size_t start_col = lexer->cur_col;
@@ -250,12 +252,12 @@ void lex_float_or_decimal(Lexer *lexer, LexicalToken **token, Diagnostic **diagn
             .line_end = lexer->cur_line,
             .linepos_end = lexer->cur_line,
         };
-        *diagnostic = diagnostic_for_span(
+        nmvec_push(diagnostics, &(Diagnostic*){ diagnostic_for_span(
             DIAG_ERROR,
             "Invalid floating constant",
             lexer->file,
             &sp
-        );
+        ) });
 
         nmstring_free(lexeme);
 
@@ -302,7 +304,7 @@ void lex_float_or_decimal(Lexer *lexer, LexicalToken **token, Diagnostic **diagn
         lexer->cur_col);
 }
 
-void lex_hex(Lexer *lexer, LexicalToken **token, Diagnostic **diagnostic) {
+void lex_hex(Lexer *lexer, LexicalToken **token, NMVec *diagnostics) {
     NMString *lexeme = nmstring_new_from_char(*lexer->cur_char);
     nmstring_append(lexeme, *(lexer->cur_char + 1));
     const size_t start_line = lexer->cur_line;
@@ -328,7 +330,7 @@ void lex_hex(Lexer *lexer, LexicalToken **token, Diagnostic **diagnostic) {
         lexer->cur_col);
 }
 
-void lex_octal(Lexer *lexer, LexicalToken **token, Diagnostic **diagnostic) {
+void lex_octal(Lexer *lexer, LexicalToken **token, NMVec *diagnostics) {
     NMString *lexeme = nmstring_new_from_char(*lexer->cur_char);
     const size_t start_line = lexer->cur_line;
     const size_t start_col = lexer->cur_col;
@@ -338,12 +340,12 @@ void lex_octal(Lexer *lexer, LexicalToken **token, Diagnostic **diagnostic) {
     while (*lexer->cur_char && isnumber(*lexer->cur_char)) {
         if (*lexer->cur_char > '7') {
             nmstring_free(lexeme);
-            *diagnostic = diagnostic_for_single_char(
+            nmvec_push(diagnostics, &(Diagnostic*){ diagnostic_for_single_char(
                 DIAG_ERROR,
                 lexer->file,
                 "Invalid digit inside octal number",
                 lexer->cur_line,
-                lexer->cur_col);
+                lexer->cur_col) });
 
             return;
         }
@@ -362,15 +364,15 @@ void lex_octal(Lexer *lexer, LexicalToken **token, Diagnostic **diagnostic) {
         lexer->cur_col);
 }
 
-void lex_number(Lexer *lexer, LexicalToken **token, Diagnostic **diagnostic) {
+void lex_number(Lexer *lexer, LexicalToken **token, NMVec *diagnostics) {
     const char cur_char = *(lexer->cur_char);
 
     if (cur_char != '0') {
-        lex_float_or_decimal(lexer, token, diagnostic);
+        lex_float_or_decimal(lexer, token, diagnostics);
     } else if (tolower(*(lexer->cur_char + 1)) == 'x') {
-        lex_hex(lexer, token, diagnostic);
+        lex_hex(lexer, token, diagnostics);
     } else {
-        lex_octal(lexer, token, diagnostic);
+        lex_octal(lexer, token, diagnostics);
     }
 }
 
@@ -425,7 +427,7 @@ void lex_identifier(Lexer *lexer, LexicalToken *token) {
     token->span = span_new(lexer->file_path, start_line, start_col, lexer->cur_line, lexer->cur_col);
 }
 
-LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
+LexicalToken *lex_next(Lexer *lexer, NMVec *diagnostics) {
     // `calloc` will cause `lexeme` to be automatically set to NULL
     LexicalToken *token = calloc(1, sizeof(LexicalToken));
     NOT_NULL(token, "Failed to allocate data for lexical token");
@@ -473,7 +475,7 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
         case ' ':
         case '\f':
         case '\v':
-            return maybe_handle_space(lexer, token, diagnostic);
+            return maybe_handle_space(lexer, token, diagnostics);
 
         // Punctuators
         SINGLE_CHAR_TOKEN('[', LEX_LBRACK)
@@ -519,12 +521,12 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
         LEXER_ADVANCE(1); \
     } \
     if (!*lexer->cur_char) { \
-        *diagnostic = diagnostic_for_single_char( \
+        nmvec_push(diagnostics, &(Diagnostic*){ diagnostic_for_single_char( \
             DIAG_ERROR, \
             lexer->file, \
             "Invalid syntax for `#line` (unexpected EOF)", \
             lexer->cur_line, \
-            lexer->cur_col); \
+            lexer->cur_col) }); \
         lexical_token_free(token); \
         token = NULL; \
         is_single_char_token = false; \
@@ -532,12 +534,12 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
 
 #define EXPECT(ch) \
     if (*lexer->cur_char != ch) { \
-        *diagnostic = diagnostic_for_single_char( \
+        nmvec_push(diagnostics, &(Diagnostic*){ diagnostic_for_single_char( \
             DIAG_ERROR, \
             lexer->file, \
             "Invalid syntax for `#line`", \
             lexer->cur_line, \
-            lexer->cur_col); \
+            lexer->cur_col) }); \
         lexical_token_free(token); \
         token = NULL; \
         is_single_char_token = false; \
@@ -548,12 +550,12 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
                         size_t num_col_start    = lexer->cur_col;
                         NMString *line_num = nmstring_new();
                         if (!isdigit(*lexer->cur_char)) {
-                            *diagnostic = diagnostic_for_single_char(
+                            nmvec_push(diagnostics, &(Diagnostic*){ diagnostic_for_single_char(
                                 DIAG_ERROR,
                                 lexer->file,
                                 "Invalid syntax for `#line` (expected a positive number)",
                                 lexer->cur_line,
-                                lexer->cur_col);
+                                lexer->cur_col) });
                             lexical_token_free(token);
                             token = NULL;
                             is_single_char_token = false;
@@ -587,11 +589,11 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
                                                 .line_end = num_line_start,
                                                 .linepos_end = num_col_end,
                                             };
-                                            *diagnostic = diagnostic_for_span(
+                                            nmvec_push(diagnostics, &(Diagnostic*){ diagnostic_for_span(
                                                 DIAG_ERROR,
                                                 "Overflow when attempting to convert line number",
                                                 lexer->file,
-                                                &sp);
+                                                &sp) });
                                             lexical_token_free(token);
                                             token = NULL;
                                             is_single_char_token = false;
@@ -616,11 +618,11 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
                             }
                         }
 
-                        if (diagnostic) {
+                        if (diagnostics) {
                             return NULL;
                         }
 
-                        return lex_next(lexer, diagnostic);
+                        return lex_next(lexer, diagnostics);
                     }
 
 #undef SKIP_WHITESPACE
@@ -776,14 +778,14 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
             const char cur_char = *lexer->cur_char;
             bool is_wide_string = cur_char == 'L' && *(lexer->cur_char + 1) == '"';
             if (cur_char == '"' || is_wide_string) {
-                lex_string(lexer, &token, is_wide_string, diagnostic);
+                lex_string(lexer, &token, is_wide_string, diagnostics);
             } else if (cur_char == '\'') {
                 NMString *lexeme = nmstring_new_from_char('\'');
                 LEXER_ADVANCE(1);
 
                 if (*lexer->cur_char == '\\') {
                     LEXER_ADVANCE(1);
-                    handle_escape_sequence(lexer, lexeme, diagnostic);
+                    handle_escape_sequence(lexer, lexeme, diagnostics);
                     LEXER_ADVANCE(1);
                 } else {
                     nmstring_append(lexeme, *lexer->cur_char);
@@ -801,11 +803,11 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
                         .linepos_end = lexer->cur_col,
                     };
 
-                    *diagnostic = diagnostic_for_span(
+                    nmvec_push(diagnostics, &(Diagnostic*){ diagnostic_for_span(
                         DIAG_ERROR,
                         "Unterminated character literal",
                         lexer->file,
-                        &sp);
+                        &sp) });
                     lexical_token_free(token);
                     nmstring_free(lexeme);
                     token = NULL;
@@ -823,14 +825,14 @@ LexicalToken *lex_next(Lexer *lexer, Diagnostic **diagnostic) {
             } else if (isalpha(cur_char) || cur_char == '_') {
                 lex_identifier(lexer, token);
             } else if (isnumber(cur_char)) {
-                lex_number(lexer, &token, diagnostic);
+                lex_number(lexer, &token, diagnostics);
             } else {
-                *diagnostic = diagnostic_for_single_char(
+                 nmvec_push(diagnostics, &(Diagnostic*){ diagnostic_for_single_char(
                     DIAG_ERROR,
                     lexer->file,
                     "Unknown character",
                     lexer->cur_line,
-                    lexer->cur_col);
+                    lexer->cur_col) });
                 lexical_token_free(token);
                 token = NULL;
             }

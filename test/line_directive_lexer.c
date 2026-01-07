@@ -9,3 +9,4 @@ int main() {}
 
 #line 11 "stdio.h"
 int printf(const char *fmt, ...);
+"\d\e"

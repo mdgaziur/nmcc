@@ -9,6 +9,7 @@
 #include "nmcc/nmdebug.h"
 #include "nmcc/nmdiagnostics.h"
 #include "nmcc/nmlex.h"
+#include "nmcc/preprocess.h"
 
 void print_usage(const char *progname) {
     fprintf(stderr, "Usage: %s [options] [filename]\n", progname);
@@ -58,9 +59,9 @@ int main(const int argc, char *argv[]) {
 
     NMString *file_data = nmfile_read_to_string(file);
 
-    Lexer *lexer = lexer_new(file, false);
-    Diagnostic *lexer_diagnostic = NULL;
-    LexicalToken *token = lex_next(lexer, &lexer_diagnostic);
+    Lexer *lexer = lexer_new(file, true);
+    NMVec *lexer_diagnostics = nmvec_new(sizeof(Diagnostic*));
+    LexicalToken *token = lex_next(lexer, lexer_diagnostics);
     while (true) {
         if (token) {
             debug_lexical_token(token);
@@ -68,19 +69,16 @@ int main(const int argc, char *argv[]) {
             lexical_token_free(token);
             if (kind == LEX_EOF) break;
         }
-        if (lexer_diagnostic) {
-            print_diagnostic(lexer_diagnostic);
-            diagnostic_free(lexer_diagnostic);
-            lexer_diagnostic = NULL;
-        }
-        token = lex_next(lexer, &lexer_diagnostic);
+        token = lex_next(lexer, lexer_diagnostics);
     }
-    // NMString *preprocessed_code = nmstring_new();
-    // preprocess_code(file, preprocessed_code);
-    // printf("Preprocessed code: \n%s\n", S(preprocessed_code));
+
+    NMString *preprocessed_code = nmstring_new();
+    preprocess_code(file, preprocessed_code);
+    printf("Preprocessed code: \n%s\n", S(preprocessed_code));
 
     // nmstring_free(preprocessed_code);
 
+    nmvec_free(lexer_diagnostics);
     lexer_free(lexer);
     nmstring_free(file_data);
     nmfile_close(file);
