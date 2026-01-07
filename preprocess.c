@@ -19,7 +19,9 @@ bool preprocess_code(NMFile *src_code, NMString *preprocessed_code) {
     while (true) {
         if (token) {
             debug_lexical_token(token);
-            if (token->kind == LEX_EOF) break;
+            LexKind token_kind = token->kind;
+            lexical_token_free(token);
+            if (token_kind == LEX_EOF) break;
         }
 
         token = lex_next(lexer, lexer_diagnostics);
@@ -35,6 +37,7 @@ bool preprocess_code(NMFile *src_code, NMString *preprocessed_code) {
     while (lexer_diagnostics->size > 0)
         diagnostic_free(*(Diagnostic **)nmvec_pop(lexer_diagnostics));
     nmvec_free(lexer_diagnostics);
+    lexer_free(lexer);
 
     return has_error;
 }

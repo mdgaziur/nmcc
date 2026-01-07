@@ -76,8 +76,7 @@ int main(const int argc, char *argv[]) {
     preprocess_code(file, preprocessed_code);
     printf("Preprocessed code: \n%s\n", S(preprocessed_code));
 
-    // nmstring_free(preprocessed_code);
-
+    nmstring_free(preprocessed_code);
     nmvec_free(lexer_diagnostics);
     lexer_free(lexer);
     nmstring_free(file_data);
