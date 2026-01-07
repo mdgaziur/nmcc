@@ -5,6 +5,8 @@
 #ifndef NMVEC_H
 #define NMVEC_H
 
+#define V(vec, type, idx) (*(type *)nmvec_at(vec, idx))
+
 typedef struct {
     char *data;
     size_t size;

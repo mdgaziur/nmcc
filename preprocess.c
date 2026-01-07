@@ -27,8 +27,7 @@ bool preprocess_code(NMFile *src_code, NMString *preprocessed_code) {
 
     size_t i;
     for (i = 0; i < lexer_diagnostics->size; i++) {
-        Diagnostic *d = *(Diagnostic**)nmvec_at(lexer_diagnostics, i);
-        print_diagnostic(d);
+        print_diagnostic(V(lexer_diagnostics, Diagnostic*, i));
     }
 
     while (lexer_diagnostics->size > 0)
