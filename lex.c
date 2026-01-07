@@ -237,7 +237,7 @@ void lex_float_or_decimal(Lexer *lexer, LexicalToken **token,
   LEXER_ADVANCE(1);
 
   while (*lexer->cur_char &&
-         (*lexer->cur_char == '.' || isnumber(*lexer->cur_char))) {
+         (*lexer->cur_char == '.' || isdigit(*lexer->cur_char))) {
     nmstring_append(lexeme, *lexer->cur_char);
 
     LEXER_ADVANCE(1);
@@ -283,7 +283,7 @@ void lex_float_or_decimal(Lexer *lexer, LexicalToken **token,
       LEXER_ADVANCE(1);
     }
 
-    while (*lexer->cur_char && isnumber(*lexer->cur_char)) {
+    while (*lexer->cur_char && isdigit(*lexer->cur_char)) {
       nmstring_append(lexeme, *lexer->cur_char);
       LEXER_ADVANCE(1);
     }
@@ -305,8 +305,8 @@ void lex_hex(Lexer *lexer, LexicalToken **token, NMVec *diagnostics) {
   LEXER_ADVANCE(2);
 
   while (*lexer->cur_char &&
-         (isnumber(*lexer->cur_char) || ('a' <= tolower(*lexer->cur_char) &&
-                                         tolower(*lexer->cur_char <= 'f')))) {
+         (isdigit(*lexer->cur_char) || ('a' <= tolower(*lexer->cur_char) &&
+                                        tolower(*lexer->cur_char <= 'f')))) {
     nmstring_append(lexeme, *lexer->cur_char);
     LEXER_ADVANCE(1);
   }
@@ -325,7 +325,7 @@ void lex_octal(Lexer *lexer, LexicalToken **token, NMVec *diagnostics) {
 
   LEXER_ADVANCE(1);
 
-  while (*lexer->cur_char && isnumber(*lexer->cur_char)) {
+  while (*lexer->cur_char && isdigit(*lexer->cur_char)) {
     if (*lexer->cur_char > '7') {
       nmstring_free(lexeme);
       nmvec_push(diagnostics, &(Diagnostic *){diagnostic_for_single_char(
@@ -819,7 +819,7 @@ LexicalToken *lex_next(Lexer *lexer, NMVec *diagnostics) {
       }
     } else if (isalpha(cur_char) || cur_char == '_') {
       lex_identifier(lexer, token);
-    } else if (isnumber(cur_char)) {
+    } else if (isdigit(cur_char)) {
       lex_number(lexer, &token, diagnostics);
     } else {
       nmvec_push(diagnostics, &(Diagnostic *){diagnostic_for_single_char(
