@@ -165,8 +165,11 @@ IncludeIsMainRegex: '(Test)?$'
 IncludeIsMainSourceRegex: ''
 IndentAccessModifiers: false
 IndentCaseBlocks: false
-IndentCaseLabels: false
+IndentCaseLabels: true
 IndentExportBlock: true
+Macros:
+  - 'SINGLE_CHAR_TOKEN(tok, tok_kind)=case tok:'
+  - 'TWO_CHAR_TOKEN(tok, single_kind, other_chars, ...)=case tok:'
 IndentExternBlock: AfterExternBlock
 IndentGotoLabels: true
 IndentPPDirectives: None

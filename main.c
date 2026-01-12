@@ -28,16 +28,16 @@ int main(const int argc, char *argv[]) {
   int opt;
   while ((opt = getopt(argc, argv, "I:h")) != -1) {
     switch (opt) {
-    case 'I':
-      NMDEBUG("-I=%s\n", optarg);
-      // preprocess_add_include_directory(nmstring_new_from_str(optarg));
-      break;
-    case 'h':
-      print_usage(progname);
-      return 0;
-    case '?':
-      print_usage(progname);
-      return EXIT_FAILURE;
+      case 'I':
+        NMDEBUG("-I=%s\n", optarg);
+        preprocess_add_include_directory(nmstring_new_from_str(optarg));
+        break;
+      case 'h':
+        print_usage(progname);
+        return 0;
+      case '?':
+        print_usage(progname);
+        return EXIT_FAILURE;
     }
   }
 
@@ -60,27 +60,12 @@ int main(const int argc, char *argv[]) {
 
   NMString *file_data = nmfile_read_to_string(file);
 
-  Lexer *lexer = lexer_new(file, true);
-  NMVec *lexer_diagnostics = nmvec_new(sizeof(Diagnostic *));
-  LexicalToken *token = lex_next(lexer, lexer_diagnostics);
-  while (true) {
-    if (token) {
-      debug_lexical_token(token);
-      LexKind kind = token->kind;
-      lexical_token_free(token);
-      if (kind == LEX_EOF)
-        break;
-    }
-    token = lex_next(lexer, lexer_diagnostics);
-  }
-
   NMString *preprocessed_code = nmstring_new();
-  preprocess_code(file, preprocessed_code);
-  printf("Preprocessed code: \n%s\n", S(preprocessed_code));
+  bool has_error = preprocess_code(file, preprocessed_code);
+  NMDEBUG("has_error: %s\n", has_error ? "true" : "false");
+  printf("%s\n", S(preprocessed_code));
 
   nmstring_free(preprocessed_code);
-  nmvec_free(lexer_diagnostics);
-  lexer_free(lexer);
   nmstring_free(file_data);
   nmfile_close(file);
 

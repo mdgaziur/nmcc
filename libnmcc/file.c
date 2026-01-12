@@ -63,6 +63,9 @@ size_t nmfile_get_size(NMFile *file) {
 }
 
 void nmfile_close(NMFile *file) {
-  fclose(file->f);
+  if (!file->has_error) {
+    fclose(file->f);
+  }
+
   free(file);
 }
