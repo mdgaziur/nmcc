@@ -6,7 +6,7 @@
 #include <nmcc/nmfmt.h>
 #include <stdarg.h>
 
-#include "../test/preprocessor_include/print_hello.h"
+#include <stdlib.h>
 
 NMString *fmt(const char *fmt, ...) {
   va_list args;

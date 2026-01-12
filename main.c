@@ -30,7 +30,10 @@ int main(const int argc, char *argv[]) {
     switch (opt) {
       case 'I':
         NMDEBUG("-I=%s\n", optarg);
-        preprocess_add_include_directory(nmstring_new_from_str(optarg));
+        NMString *path = nmstring_new_from_str(optarg);
+        preprocess_add_include_directory(path);
+        free(path); // TODO: `preprocess_add_include_directory` takes ownership
+                    // of inner data. We need a better way to free this.
         break;
       case 'h':
         print_usage(progname);

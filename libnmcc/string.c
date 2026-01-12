@@ -150,6 +150,7 @@ void nmstring_replace(NMString *this, const char *what, const char *with) {
   this->buf = res->buf;
   this->size = res->size;
   free(res);
+  nmstring_free(cur);
 }
 
 static NMString *nmstring_create_with_size(const size_t size) {
