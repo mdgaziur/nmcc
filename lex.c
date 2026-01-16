@@ -531,16 +531,18 @@ LexicalToken *lex_next(Lexer *lexer, NMVec *diagnostics) {
     SINGLE_CHAR_TOKEN('?', LEX_QUESTION)
     SINGLE_CHAR_TOKEN('\\', LEX_BACKSLASH)
 
-      TWO_CHAR_TOKEN('-', LEX_MINUS, ">-=", LEX_ARROW, LEX_DEC,
-                     LEX_MINUS_ASSIGN)
-      TWO_CHAR_TOKEN('+', LEX_PLUS, "+=", LEX_INC, LEX_PLUS_ASSIGN)
-      TWO_CHAR_TOKEN('&', LEX_AMP, "&=", LEX_AND, LEX_AND_ASSIGN)
-      TWO_CHAR_TOKEN('%', LEX_MOD, "=", LEX_MOD_ASSIGN)
-      TWO_CHAR_TOKEN('^', LEX_XOR, "=", LEX_XOR_ASSIGN)
-      TWO_CHAR_TOKEN('!', LEX_NOT, "=", LEX_NOT_EQUALS)
-      TWO_CHAR_TOKEN('=', LEX_ASSIGN, "=", LEX_EQUAL)
-      TWO_CHAR_TOKEN('|', LEX_BINARY_OR, "|=", LEX_OR, LEX_OR_ASSIGN)
-      TWO_CHAR_TOKEN('*', LEX_STAR, "=", LEX_MUL_ASSIGN)
+      /* clang-format off */
+    TWO_CHAR_TOKEN('-', LEX_MINUS, ">-=", LEX_ARROW, LEX_DEC,
+                   LEX_MINUS_ASSIGN)
+    TWO_CHAR_TOKEN('+', LEX_PLUS, "+=", LEX_INC, LEX_PLUS_ASSIGN)
+    TWO_CHAR_TOKEN('&', LEX_AMP, "&=", LEX_AND, LEX_AND_ASSIGN)
+    TWO_CHAR_TOKEN('%', LEX_MOD, "=", LEX_MOD_ASSIGN)
+    TWO_CHAR_TOKEN('^', LEX_XOR, "=", LEX_XOR_ASSIGN)
+    TWO_CHAR_TOKEN('!', LEX_NOT, "=", LEX_NOT_EQUALS)
+    TWO_CHAR_TOKEN('=', LEX_ASSIGN, "=", LEX_EQUAL)
+    TWO_CHAR_TOKEN('|', LEX_BINARY_OR, "|=", LEX_OR, LEX_OR_ASSIGN)
+    TWO_CHAR_TOKEN('*', LEX_STAR, "=", LEX_MUL_ASSIGN)
+      /* clang-format on */
 
     case '#': {
       const LexKind kinds[] = {LEX_DHASH};
