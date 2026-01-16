@@ -2,17 +2,16 @@
 // Created by MD Gaziur Rahman Noor on 23/12/25.
 //
 
+#include "nmcc/nmmust.h"
+
 #include <nmcc/nmerror.h>
 #include <nmcc/nmfile.h>
 #include <stdlib.h>
-#include <string.h>
 
 NMFile *nmfile_open(const char *filename) {
   NMFile *file;
   file = (NMFile *)malloc(sizeof(NMFile));
-  if (!file) {
-    return NULL;
-  }
+  NOT_NULL(file, "Failed to allocate memory for NMFile struct");
 
   file->f = fopen(filename, "r");
   file->has_error = !file->f;

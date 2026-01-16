@@ -36,3 +36,13 @@ NMString *get_dirname(const char *absolute_path) {
 
   return final_path;
 }
+
+size_t align_up_to_power_of_two(const size_t n) {
+  if (n == 0)
+    return 1;
+
+  size_t res = 1;
+  while (res < n)
+    res *= 2;
+  return res;
+}

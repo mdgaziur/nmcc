@@ -5,6 +5,7 @@
 #include <nmcc/preprocess.h>
 
 #include "nmcc/nmdebug.h"
+#include "nmcc/nmfmt.h"
 #include "nmcc/nmlex.h"
 #include "nmcc/nmmust.h"
 #include <nmcc/nmutils.h>
@@ -12,26 +13,38 @@
 #include <stdlib.h>
 
 typedef struct {
+  NMString *name;
+  NMVec *args;
+  NMVec *macro_tokens;
+  bool is_function_like;
+} MacroDefn;
+
+typedef struct {
+  MacroDefn *macro_definitions;
+  size_t n_macro_definitions;
+
   NMString *include_directories;
   size_t n_include_directories;
 } PreprocessorState;
 
-PreprocessorState preprocessor_state = {
+PreprocessorState PREPROCESSOR_STATE = {
     .include_directories = NULL,
     .n_include_directories = 0,
 };
 
 void preprocess_add_include_directory(NMString *path) {
-  preprocessor_state.include_directories = realloc(
-      preprocessor_state.include_directories,
-      (preprocessor_state.n_include_directories + 1) * sizeof(NMString));
-  NOT_NULL(preprocessor_state.include_directories,
+  PREPROCESSOR_STATE.include_directories = realloc(
+      PREPROCESSOR_STATE.include_directories,
+      (PREPROCESSOR_STATE.n_include_directories + 1) * sizeof(NMString));
+  NOT_NULL(PREPROCESSOR_STATE.include_directories,
            "Failed to allocate buffer to store include directories");
 
-  preprocessor_state
-      .include_directories[preprocessor_state.n_include_directories] = *path;
+  PREPROCESSOR_STATE
+      .include_directories[PREPROCESSOR_STATE.n_include_directories] = *path;
 
-  preprocessor_state.n_include_directories++;
+  PREPROCESSOR_STATE.n_include_directories++;
+
+  free(path);
 }
 
 NMFile *try_resolve_include(NMString *parent_path, NMString *path,
@@ -51,9 +64,9 @@ NMFile *try_resolve_include(NMString *parent_path, NMString *path,
   }
 
   size_t i;
-  for (i = 0; i < preprocessor_state.n_include_directories; i++) {
+  for (i = 0; i < PREPROCESSOR_STATE.n_include_directories; i++) {
     NMString *cur_path =
-        nmstring_new_from_str(S(&preprocessor_state.include_directories[i]));
+        nmstring_new_from_str(S(&PREPROCESSOR_STATE.include_directories[i]));
     nmstring_append(cur_path, '/');
     nmstring_append_nmstring(cur_path, path);
 
@@ -68,16 +81,9 @@ NMFile *try_resolve_include(NMString *parent_path, NMString *path,
   return NULL;
 }
 
-NMString *construct_line_directive(const char *file_path, size_t line_num) {
-#define LINE_NUM_MAX_SZ 21
-  char line_num_str[LINE_NUM_MAX_SZ];
-  NMString *line_directive = nmstring_new_from_str("#line ");
-  snprintf(line_num_str, LINE_NUM_MAX_SZ, "%zu", line_num);
-  nmstring_append_buf(line_directive, line_num_str);
-  nmstring_append_buf(line_directive, " \"");
-  nmstring_append_buf(line_directive, file_path);
-  nmstring_append_buf(line_directive, "\"\n");
-#undef LINE_NUM_MAX_SZ
+NMString *construct_line_directive(const char *file_path,
+                                   const size_t line_num) {
+  NMString *line_directive = fmt("#line %zu \"%s\"\n", line_num, file_path);
   return line_directive;
 }
 
@@ -90,6 +96,90 @@ LexicalToken *skip_whitespace(Lexer *lexer, NMVec *preprocessor_diagnostics) {
   return cmp_token;
 }
 
+void handle_include_directive(Lexer *lexer, NMString *preprocessed_code,
+                              NMVec *preprocessor_diagnostics) {
+  NMString *include_path = nmstring_new();
+  NMFile *inc;
+  NMString *inc_content;
+  NMString *line_directive_start;
+  NMString *line_directive_continue;
+  Span final_span;
+  NMString *parent_path = get_dirname(lexer->file_path);
+  bool supports_current_dir = false;
+
+  LexicalToken *cmp_token = skip_whitespace(lexer, preprocessor_diagnostics);
+  Span start_span = cmp_token->span;
+  if (cmp_token->kind == LEX_LESS) {
+    LexicalToken *include_token = lex_next(lexer, preprocessor_diagnostics);
+    while (include_token->kind != LEX_EOF &&
+           include_token->kind != LEX_NEWLINE &&
+           include_token->kind != LEX_GREATER) {
+      nmstring_append_nmstring(include_path, include_token->lexeme);
+      lexical_token_free(include_token);
+      include_token = lex_next(lexer, preprocessor_diagnostics);
+    }
+
+    if (include_token->kind != LEX_GREATER) {
+      Diagnostic *d = diagnostic_for_span(DIAG_ERROR, "expected `>`",
+                                          lexer->file, &include_token->span);
+      nmvec_push(preprocessor_diagnostics, &d);
+      nmstring_append_nmstring(preprocessed_code, include_token->lexeme);
+      goto end;
+    }
+
+    final_span = span_merge(&start_span, &include_token->span);
+    lexical_token_free(include_token);
+  } else if (cmp_token->kind == LEX_STRING) {
+    supports_current_dir = true;
+    NMString *include_path_from_token =
+        nmstring_new_from_str(S(cmp_token->lexeme));
+    nmstring_replace(include_path_from_token, "\"", "");
+    nmstring_append_nmstring(include_path, include_path_from_token);
+    nmstring_free(include_path_from_token);
+  } else {
+    Diagnostic *d = diagnostic_for_span(DIAG_ERROR, "unexpected token",
+                                        lexer->file, &cmp_token->span);
+    nmvec_push(preprocessor_diagnostics, &d);
+    nmstring_append_nmstring(preprocessed_code, cmp_token->lexeme);
+    lexical_token_free(cmp_token);
+    goto end;
+  }
+
+  inc = try_resolve_include(parent_path, include_path, supports_current_dir);
+  if (!inc) {
+    Diagnostic *d = diagnostic_for_span(
+        DIAG_ERROR, "Failed to open file to include", lexer->file, &final_span);
+    nmvec_push(preprocessor_diagnostics, &d);
+    goto end;
+  }
+
+  inc_content = nmfile_read_to_string(inc);
+
+  line_directive_start = construct_line_directive(S(include_path), 1);
+  line_directive_continue =
+      construct_line_directive(lexer->file_path, lexer->cur_line + 1);
+
+  nmstring_append_nmstring(preprocessed_code, line_directive_start);
+  nmstring_append_nmstring(preprocessed_code, inc_content);
+  if (S(preprocessed_code)[preprocessed_code->size - 1] != '\n') {
+    nmstring_append(preprocessed_code, '\n');
+  }
+  nmstring_append_nmstring(preprocessed_code, line_directive_continue);
+
+  /*
+    The following frees and closes are not done inside the `end` label
+    because they are never allocated before explicitly jumping into the label.
+  */
+  nmstring_free(line_directive_start);
+  nmstring_free(line_directive_continue);
+  nmfile_close(inc);
+  nmstring_free(inc_content);
+end:
+  lexical_token_free(cmp_token);
+  nmstring_free(parent_path);
+  nmstring_free(include_path);
+}
+
 void handle_token(Lexer *lexer, LexicalToken *token,
                   NMString *preprocessed_code,
                   NMVec *preprocessor_diagnostics) {
@@ -98,88 +188,8 @@ void handle_token(Lexer *lexer, LexicalToken *token,
       LexicalToken *ident = lex_next(lexer, preprocessor_diagnostics);
       if (ident->kind == LEX_IDENT) {
         if (NM_EQ_C(ident->lexeme, "include")) {
-          NMString *include_path = nmstring_new();
-          NMFile *inc;
-          NMString *inc_content;
-          NMString *line_directive_start;
-          NMString *line_directive_continue;
-          Span final_span;
-          NMString *parent_path = get_dirname(lexer->file_path);
-          bool supports_current_dir = false;
-
-          LexicalToken *cmp_token =
-              skip_whitespace(lexer, preprocessor_diagnostics);
-          Span start_span = cmp_token->span;
-          if (cmp_token->kind == LEX_LESS) {
-            LexicalToken *include_token =
-                lex_next(lexer, preprocessor_diagnostics);
-            while (include_token->kind != LEX_EOF &&
-                   include_token->kind != LEX_NEWLINE &&
-                   include_token->kind != LEX_GREATER) {
-              nmstring_append_nmstring(include_path, include_token->lexeme);
-              lexical_token_free(include_token);
-              include_token = lex_next(lexer, preprocessor_diagnostics);
-            }
-
-            if (include_token->kind != LEX_GREATER) {
-              Diagnostic *d =
-                  diagnostic_for_span(DIAG_ERROR, "expected `>`", lexer->file,
-                                      &include_token->span);
-              nmvec_push(preprocessor_diagnostics, &d);
-              nmstring_append_nmstring(preprocessed_code,
-                                       include_token->lexeme);
-              goto end;
-            }
-
-            final_span = span_merge(&start_span, &include_token->span);
-            lexical_token_free(include_token);
-          } else if (cmp_token->kind == LEX_STRING) {
-            supports_current_dir = true;
-            NMString *include_path_from_token =
-                nmstring_new_from_str(S(cmp_token->lexeme));
-            nmstring_replace(include_path_from_token, "\"", "");
-            nmstring_append_nmstring(include_path, include_path_from_token);
-            nmstring_free(include_path_from_token);
-          } else {
-            Diagnostic *d = diagnostic_for_span(DIAG_ERROR, "unexpected token",
-                                                lexer->file, &cmp_token->span);
-            nmvec_push(preprocessor_diagnostics, &d);
-            nmstring_append_nmstring(preprocessed_code, cmp_token->lexeme);
-            lexical_token_free(cmp_token);
-            goto end;
-          }
-
-          inc = try_resolve_include(parent_path, include_path,
-                                    supports_current_dir);
-          if (!inc) {
-            Diagnostic *d = diagnostic_for_span(
-                DIAG_ERROR, "Failed to open file to include", lexer->file,
-                &final_span);
-            nmvec_push(preprocessor_diagnostics, &d);
-            goto end;
-          }
-
-          inc_content = nmfile_read_to_string(inc);
-
-          line_directive_start = construct_line_directive(S(include_path), 1);
-          line_directive_continue =
-              construct_line_directive(lexer->file_path, lexer->cur_line + 1);
-
-          nmstring_append_nmstring(preprocessed_code, line_directive_start);
-          nmstring_append_nmstring(preprocessed_code, inc_content);
-          if (S(preprocessed_code)[preprocessed_code->size - 1] != '\n') {
-            nmstring_append(preprocessed_code, '\n');
-          }
-          nmstring_append_nmstring(preprocessed_code, line_directive_continue);
-
-          nmstring_free(line_directive_start);
-          nmstring_free(line_directive_continue);
-          nmfile_close(inc);
-          nmstring_free(inc_content);
-        end:
-          lexical_token_free(cmp_token);
-          nmstring_free(parent_path);
-          nmstring_free(include_path);
+          handle_include_directive(lexer, preprocessed_code,
+                                   preprocessor_diagnostics);
         } else {
           // TODO
         }
@@ -212,7 +222,7 @@ bool preprocess_code(NMFile *src_code, NMString *preprocessed_code) {
 
   while (true) {
     if (token) {
-      LexKind token_kind = token->kind;
+      const LexKind token_kind = token->kind;
 
       handle_token(lexer, token, preprocessed_code, preprocessor_diagnostics);
 

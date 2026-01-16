@@ -1,15 +1,12 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <nmcc/nmcolors.h>
+#include <nmcc/nmdebug.h>
+#include <nmcc/nmdiagnostics.h>
 #include <nmcc/nmfile.h>
 #include <nmcc/nmmust.h>
-// #include <nmcc/preprocess1.h>
-
-#include "nmcc/nmcolors.h"
-#include "nmcc/nmdebug.h"
-#include "nmcc/nmdiagnostics.h"
-#include "nmcc/nmlex.h"
-#include "nmcc/preprocess.h"
+#include <nmcc/preprocess.h>
 
 void print_usage(const char *progname) {
   fprintf(stderr, "Usage: %s [options] [filename]\n", progname);
@@ -32,8 +29,6 @@ int main(const int argc, char *argv[]) {
         NMDEBUG("-I=%s\n", optarg);
         NMString *path = nmstring_new_from_str(optarg);
         preprocess_add_include_directory(path);
-        free(path); // TODO: `preprocess_add_include_directory` takes ownership
-                    // of inner data. We need a better way to free this.
         break;
       case 'h':
         print_usage(progname);
@@ -64,7 +59,7 @@ int main(const int argc, char *argv[]) {
   NMString *file_data = nmfile_read_to_string(file);
 
   NMString *preprocessed_code = nmstring_new();
-  bool has_error = preprocess_code(file, preprocessed_code);
+  const bool has_error = preprocess_code(file, preprocessed_code);
   NMDEBUG("has_error: %s\n", has_error ? "true" : "false");
   printf("%s\n", S(preprocessed_code));
 

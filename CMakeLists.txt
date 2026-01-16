@@ -42,13 +42,11 @@ add_executable(nmcc main.c
         type.c
         validate.c
         codegen.c
-        preprocess1.c
         preprocess.c
         libnmcc/error.c
         libnmcc/file.c
         include/nmcc/nmfile.h
         include/nmcc/nmmust.h
-        include/nmcc/preprocess1.h
         include/nmcc/nmvec.h
         libnmcc/vec.c
         include/nmcc/nmdebug.h

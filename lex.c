@@ -86,8 +86,15 @@ LexicalToken *maybe_handle_space(Lexer *lexer, LexicalToken *token,
     return token;
   }
 
-  LEXER_ADVANCE(1);
+  while (isspace(*lexer->cur_char)) {
+    LEXER_ADVANCE(1);
+    if (*lexer->cur_char == '\n') {
+      lexer->cur_line++;
+      lexer->cur_col = 0;
+    }
+  }
   lexical_token_free(token);
+
   return lex_next(lexer, diagnostic);
 }
 
@@ -755,12 +762,12 @@ LexicalToken *lex_next(Lexer *lexer, NMVec *diagnostics) {
           LEXER_ADVANCE(2);
 
           token->kind = LEX_LSHIFT_ASSIGN;
-          token->lexeme = nmstring_new_from_str(">>=");
+          token->lexeme = nmstring_new_from_str("<<=");
         } else {
           LEXER_ADVANCE(1);
 
           token->kind = LEX_LSHIFT;
-          token->lexeme = nmstring_new_from_str(">>");
+          token->lexeme = nmstring_new_from_str("<<");
         }
       } else if (next_char == '=') {
         is_single_char_token = false;
