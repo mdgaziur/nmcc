@@ -12,7 +12,11 @@ NMString *fmt(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
 
-  char *res;
-  vasprintf(&res, fmt, args);
+  char *out;
+  vasprintf(&out, fmt, args);
   va_end(args);
+
+  NMString *res = nmstring_new_from_str(out);
+  free(out);
+  return res;
 }

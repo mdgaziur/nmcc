@@ -10,9 +10,14 @@
 #define S(nmstring) nmstring_get_inner(nmstring)
 #define NM_EQ_C(s1, cs1) (strcmp(S(s1), cs1) == 0)
 
+extern size_t NMSTRING_GROWTH_FACTOR;
+
 typedef struct {
   char *buf;
+  // Size of the string currently stored(minus the NUL terminator)
   size_t size;
+  // Max capacity of the buffer(minus the NUL terminator)
+  size_t capacity;
 } NMString;
 
 NMString *nmstring_new();
@@ -23,7 +28,7 @@ size_t nmstring_length(const NMString *this);
 size_t nmstring_count(const NMString *this, char c);
 void nmstring_append(NMString *this, const char c);
 void nmstring_append_buf(NMString *this, const char *buf);
-void nmstring_append_nmstring(NMString *this, NMString *src);
+void nmstring_append_nmstring(NMString *this, const NMString *src);
 const char *nmstring_get_inner(const NMString *this);
 void nmstring_replace(NMString *this, const char *what, const char *with);
 void nmstring_free(NMString *this);
