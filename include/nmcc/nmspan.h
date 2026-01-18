@@ -9,7 +9,7 @@
 #include "nmstring.h"
 
 typedef struct {
-  NMString *file_path;
+  const char *file_path;
 
   size_t line_start;
   size_t line_end;
@@ -18,9 +18,9 @@ typedef struct {
   size_t linepos_end;
 } Span;
 
-Span span_for_single_char(NMString *file_path, size_t line_start,
+Span span_for_single_char(const char *file_path, size_t line_start,
                           size_t linepos);
-Span span_new(NMString *file_path, size_t line_start, size_t linepos_start,
+Span span_new(const char *file_path, size_t line_start, size_t linepos_start,
               size_t line_end, size_t linepos_end);
 
 // Merge span where s1 < s2 and both have the same source file

@@ -4,7 +4,7 @@
 
 #include "nmcc/nmspan.h"
 
-Span span_for_single_char(NMString *file_path, size_t line_start,
+Span span_for_single_char(const char *file_path, size_t line_start,
                           size_t linepos) {
   Span sp = {
       .file_path = file_path,
@@ -17,7 +17,7 @@ Span span_for_single_char(NMString *file_path, size_t line_start,
   return sp;
 }
 
-Span span_new(NMString *file_path, size_t line_start, size_t linepos_start,
+Span span_new(const char *file_path, size_t line_start, size_t linepos_start,
               size_t line_end, size_t linepos_end) {
   Span sp = {
       .file_path = file_path,
